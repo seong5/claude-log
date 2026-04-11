@@ -16,7 +16,9 @@
       "Bash(git -C /Users/seongohshin/Documents/claude-log log --oneline)",
       "Bash(git -C /Users/seongohshin/Documents/claude-log show --stat HEAD)",
       "Read(//Users/seongohshin/.claude/**)",
-      "Read(//Users/seongohshin/.claude/projects/**)"
+      "Read(//Users/seongohshin/.claude/projects/**)",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log add .claude/commands/push.md .claude/commands/pr.md)",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log commit -m ':*)"
     ]
   }
 }
