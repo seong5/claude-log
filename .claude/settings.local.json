@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(node -e ':*)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest:*)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm approve-builds:*)",
+      "Bash(pnpm build:*)",
+      "WebSearch",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log status)",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log diff)",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log log --oneline)",
+      "Bash(git -C /Users/seongohshin/Documents/claude-log show --stat HEAD)"
+    ]
+  }
+}
