@@ -20,7 +20,6 @@ function generateMockData(): DayData[] {
     const dow = date.getDay()
     const isWeekday = dow !== 0 && dow !== 6
 
-    // Simulate realistic usage: active weekdays, occasional weekends, some dead days
     let tokens = 0
     const active = rand() < (isWeekday ? 0.82 : 0.35)
     if (active) {
@@ -70,68 +69,119 @@ export default function App(): React.JSX.Element {
 
   return (
     <div
-      className="min-h-screen text-gray-100 overflow-auto"
-      style={{ backgroundColor: '#0c0a09', fontFamily: "'Inter', system-ui, sans-serif" }}
+      className="min-h-screen overflow-auto"
+      style={{
+        backgroundColor: '#fdf6ec',
+        fontFamily: "'Nunito', system-ui, sans-serif",
+        color: '#4a2e1a',
+        backgroundImage: `radial-gradient(ellipse at 20% 0%, rgba(244, 160, 85, 0.08) 0%, transparent 60%),
+                          radial-gradient(ellipse at 80% 10%, rgba(217, 98, 42, 0.06) 0%, transparent 50%)`,
+      }}
     >
       {/* Top Navigation */}
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
-        style={{ backgroundColor: '#0c0a09cc', backdropFilter: 'blur(12px)', borderBottom: '1px solid #1c1917' }}
+        style={{
+          backgroundColor: 'rgba(253, 246, 236, 0.88)',
+          backdropFilter: 'blur(16px)',
+          borderBottom: '1px solid #ecdccc',
+          boxShadow: '0 1px 12px rgba(180, 100, 50, 0.06)',
+        }}
       >
         <div className="flex items-center gap-3">
-          {/* Claude icon */}
+          {/* Mascot icon */}
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold"
-            style={{ background: 'linear-gradient(135deg, #fb923c, #c2410c)' }}
+            className="w-8 h-8 rounded-xl flex items-center justify-center mascot-float overflow-hidden"
+            style={{ boxShadow: '0 2px 8px rgba(217, 98, 42, 0.25)' }}
           >
-            C
+            <img
+              src="../../resources/icon.png"
+              alt="Claude Log"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement
+                target.style.display = 'none'
+                const parent = target.parentElement
+                if (parent) {
+                  parent.style.background = 'linear-gradient(135deg, #f4a055, #d9622a)'
+                  parent.innerHTML = '<span style="font-size:16px">🐙</span>'
+                }
+              }}
+            />
           </div>
-          <span className="font-semibold text-gray-100 text-sm">Claude Code Analytics</span>
+          <span className="font-bold text-sm" style={{ color: '#4a2e1a', letterSpacing: '-0.01em' }}>
+            Claude Log
+          </span>
           <span
-            className="text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{ backgroundColor: '#292524', color: '#fb923c' }}
+            className="text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={{ backgroundColor: '#fde8d5', color: '#d9622a', border: '1px solid #f4c4a0' }}
           >
             Beta
           </span>
         </div>
-        <div className="flex items-center gap-4 text-xs text-gray-400">
-          <div className="flex items-center gap-1.5">
+
+        <div className="flex items-center gap-3 text-xs">
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{ backgroundColor: '#f0faf2', border: '1px solid #c0e8cc' }}
+          >
             <span
-              className="inline-block w-2 h-2 rounded-full animate-pulse"
-              style={{ backgroundColor: '#4ade80' }}
+              className="live-dot inline-block w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: '#6daa7c' }}
             />
-            실시간 추적 중
+            <span style={{ color: '#4a8c5c', fontWeight: 600 }}>실시간 추적 중</span>
           </div>
           <div
-            className="px-3 py-1.5 rounded-lg text-gray-300"
-            style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
+            className="px-3 py-1.5 rounded-xl"
+            style={{
+              backgroundColor: '#fde8d5',
+              border: '1px solid #f4c4a0',
+              color: '#8c6248',
+            }}
           >
-            이번 달 <span className="font-mono text-orange-400 ml-1">{formatTokensShort(totalThisMonth)}</span>
+            이번 달{' '}
+            <span
+              className="font-mono font-bold ml-1"
+              style={{ color: '#d9622a' }}
+            >
+              {formatTokensShort(totalThisMonth)}
+            </span>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {/* Hero section */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-50 mb-1">토큰 사용량</h1>
-            <p className="text-gray-400 text-sm">Claude Code 세션의 일별 토큰 소비량을 추적합니다</p>
+            <h1
+              className="text-3xl font-extrabold mb-1"
+              style={{ color: '#3a2010', letterSpacing: '-0.02em' }}
+            >
+              토큰 사용량 ✨
+            </h1>
+            <p className="text-sm font-medium" style={{ color: '#9a7060' }}>
+              Claude Code 세션의 일별 토큰 소비량을 추적합니다
+            </p>
           </div>
           {/* Period selector */}
           <div
-            className="flex gap-1 p-1 rounded-lg"
-            style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
+            className="flex gap-1 p-1 rounded-2xl"
+            style={{ backgroundColor: '#f5ebe0', border: '1px solid #ecdccc' }}
           >
             {(['3M', '6M', '1Y'] as Period[]).map((p) => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+                className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
                 style={
                   period === p
-                    ? { backgroundColor: '#292524', color: '#fb923c' }
-                    : { color: '#6b7280' }
+                    ? {
+                        backgroundColor: '#fffcf8',
+                        color: '#d9622a',
+                        boxShadow: '0 1px 6px rgba(180, 100, 50, 0.12)',
+                      }
+                    : { color: '#b89680' }
                 }
               >
                 {p === '3M' ? '3개월' : p === '6M' ? '6개월' : '1년'}
@@ -142,21 +192,31 @@ export default function App(): React.JSX.Element {
 
         {/* Heatmap Card */}
         <div
-          className="rounded-2xl p-6"
-          style={{ backgroundColor: '#111110', border: '1px solid #1c1917' }}
+          className="rounded-3xl p-6"
+          style={{
+            backgroundColor: '#fffcf8',
+            border: '1px solid #ecdccc',
+            boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
+          }}
         >
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-semibold text-gray-200 text-sm">활동 히트맵</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <h2 className="font-extrabold text-base" style={{ color: '#3a2010' }}>
+                🗓 활동 히트맵
+              </h2>
+              <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
                 {period === '1Y' ? '최근 1년' : period === '6M' ? '최근 6개월' : '최근 3개월'} 토큰 사용 기록
               </p>
             </div>
-            <div className="text-xs text-gray-500">
-              <span className="text-orange-400 font-semibold text-sm">
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: '#fde8d5', border: '1px solid #f4c4a0' }}
+            >
+              <span className="text-sm">🔥</span>
+              <span className="font-bold text-sm" style={{ color: '#d9622a' }}>
                 {filteredData.filter((d) => d.tokens > 0).length}
               </span>
-              일 활성
+              <span className="text-xs font-semibold" style={{ color: '#c07050' }}>일 활성</span>
             </div>
           </div>
           <div className="overflow-x-auto pb-2">
@@ -166,17 +226,25 @@ export default function App(): React.JSX.Element {
 
         {/* Stats */}
         <div>
-          <h2 className="font-semibold text-gray-200 text-sm mb-3">요약 통계</h2>
+          <h2 className="font-extrabold text-base mb-3" style={{ color: '#3a2010' }}>
+            📊 요약 통계
+          </h2>
           <StatsPanel data={filteredData} />
         </div>
 
         {/* Recent activity */}
         <div
-          className="rounded-2xl p-6"
-          style={{ backgroundColor: '#111110', border: '1px solid #1c1917' }}
+          className="rounded-3xl p-6"
+          style={{
+            backgroundColor: '#fffcf8',
+            border: '1px solid #ecdccc',
+            boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
+          }}
         >
-          <h2 className="font-semibold text-gray-200 text-sm mb-4">최근 7일 활동</h2>
-          <div className="space-y-2">
+          <h2 className="font-extrabold text-base mb-5" style={{ color: '#3a2010' }}>
+            📅 최근 7일 활동
+          </h2>
+          <div className="space-y-2.5">
             {allData
               .slice(-7)
               .reverse()
@@ -186,38 +254,53 @@ export default function App(): React.JSX.Element {
                 const maxT = Math.max(...allData.slice(-7).map((d) => d.tokens), 1)
                 const pct = (day.tokens / maxT) * 100
                 return (
-                  <div key={day.date} className="flex items-center gap-4">
-                    <div className="text-xs text-gray-400 w-24 shrink-0 flex items-center gap-1.5">
-                      {isToday && (
+                  <div key={day.date} className="flex items-center gap-3">
+                    <div
+                      className="text-xs font-bold w-24 shrink-0 flex items-center gap-1.5"
+                      style={{ color: '#9a7060' }}
+                    >
+                      {isToday ? (
                         <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                          style={{ backgroundColor: '#431407', color: '#fb923c' }}
+                          className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                          style={{ backgroundColor: '#fde8d5', color: '#d9622a', border: '1px solid #f4c4a0' }}
                         >
                           오늘
                         </span>
+                      ) : (
+                        date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })
                       )}
-                      {!isToday &&
-                        date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })}
                     </div>
-                    <div className="flex-1 h-5 rounded-md overflow-hidden" style={{ backgroundColor: '#1c1917' }}>
+                    <div
+                      className="flex-1 h-6 rounded-full overflow-hidden"
+                      style={{ backgroundColor: '#f5ebe0' }}
+                    >
                       {day.tokens > 0 && (
                         <div
-                          className="h-full rounded-md flex items-center px-2 transition-all"
+                          className="h-full rounded-full flex items-center px-3 transition-all duration-500"
                           style={{
-                            width: `${Math.max(pct, 4)}%`,
-                            background: 'linear-gradient(to right, #7c2d12, #fb923c)',
+                            width: `${Math.max(pct, 5)}%`,
+                            background: 'linear-gradient(to right, #f4a055, #d9622a)',
                           }}
                         >
-                          <span className="text-[10px] font-mono text-orange-100 whitespace-nowrap overflow-hidden">
-                            {pct > 25 ? formatTokensShort(day.tokens) : ''}
+                          <span
+                            className="text-[10px] font-bold font-mono whitespace-nowrap overflow-hidden"
+                            style={{ color: '#fff8f4' }}
+                          >
+                            {pct > 30 ? formatTokensShort(day.tokens) : ''}
                           </span>
                         </div>
                       )}
                     </div>
-                    <div className="text-xs font-mono text-gray-400 w-16 text-right shrink-0">
-                      {day.tokens > 0 ? formatTokensShort(day.tokens) : <span className="text-gray-700">—</span>}
+                    <div
+                      className="text-xs font-mono font-bold w-16 text-right shrink-0"
+                      style={{ color: day.tokens > 0 ? '#9a7060' : '#d4b8a4' }}
+                    >
+                      {day.tokens > 0 ? formatTokensShort(day.tokens) : '—'}
                     </div>
-                    <div className="text-xs text-gray-600 w-10 text-right shrink-0">
+                    <div
+                      className="text-xs font-semibold w-10 text-right shrink-0"
+                      style={{ color: '#c0a090' }}
+                    >
                       {day.sessions > 0 ? `${day.sessions}회` : ''}
                     </div>
                   </div>
@@ -228,9 +311,12 @@ export default function App(): React.JSX.Element {
       </main>
 
       {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-6 py-6 mt-4" style={{ borderTop: '1px solid #1c1917' }}>
-        <p className="text-xs text-gray-600 text-center">
-          Claude Code Analytics · 데이터는 로컬에 저장됩니다 · Mock data for UI preview
+      <footer
+        className="max-w-6xl mx-auto px-6 py-6 mt-4"
+        style={{ borderTop: '1px solid #ecdccc' }}
+      >
+        <p className="text-xs font-semibold text-center" style={{ color: '#c0a090' }}>
+          Claude Log · 데이터는 로컬에 저장됩니다 · Mock data for UI preview 🌿
         </p>
       </footer>
     </div>

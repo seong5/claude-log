@@ -21,20 +21,19 @@ interface StatCardProps {
   icon: string
 }
 
-function StatCard({ label, value, sub, color = '#fb923c', icon }: StatCardProps) {
+function StatCard({ label, value, sub, color = '#c2410c', icon }: StatCardProps) {
   return (
     <div
-      className="rounded-xl p-4 flex flex-col gap-2"
-      style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
+      className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm flex flex-col gap-2"
     >
       <div className="flex items-center gap-2">
         <span className="text-lg">{icon}</span>
-        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">{label}</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
       </div>
       <div className="font-mono font-bold text-2xl" style={{ color }}>
         {value}
       </div>
-      {sub && <div className="text-xs text-gray-500">{sub}</div>}
+      {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
     </div>
   )
 }
@@ -46,13 +45,10 @@ interface ModelBreakdownProps {
 
 function ModelBreakdown({ data, total }: ModelBreakdownProps) {
   return (
-    <div
-      className="rounded-xl p-4"
-      style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
-    >
+    <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-lg">🤖</span>
-        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">모델별 사용량</span>
+        <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">모델별 사용량</span>
       </div>
       <div className="space-y-2">
         {data.map((m) => {
@@ -60,10 +56,10 @@ function ModelBreakdown({ data, total }: ModelBreakdownProps) {
           return (
             <div key={m.model}>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-gray-300">{m.model}</span>
-                <span className="font-mono text-gray-400">{formatTokens(m.tokens)}</span>
+                <span className="text-[#3d2918]">{m.model}</span>
+                <span className="font-mono text-[#6b5344]">{formatTokens(m.tokens)}</span>
               </div>
-              <div className="h-1.5 rounded-full" style={{ backgroundColor: '#292524' }}>
+              <div className="h-1.5 rounded-full bg-[#f0e4d8]">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{ width: `${pct}%`, backgroundColor: m.color }}
@@ -115,78 +111,72 @@ export default function StatsPanel({ data }: Props) {
         label="연속 사용일"
         value={`${streak}일`}
         sub="현재 스트릭"
-        color="#fb923c"
+        color="#c2410c"
       />
       <StatCard
         icon="📊"
         label="총 토큰"
         value={formatTokens(totalTokens)}
         sub={`활성일 ${activeDays}일`}
-        color="#fb923c"
+        color="#c2410c"
       />
       <StatCard
         icon="💬"
         label="총 세션"
         value={totalSessions.toLocaleString()}
         sub={`일평균 ${(totalSessions / Math.max(activeDays, 1)).toFixed(1)}회`}
-        color="#a78bfa"
+        color="#6d28d9"
       />
       <StatCard
         icon="💰"
         label="예상 비용"
         value={formatCost(totalTokens)}
         sub="올해 누적 (추정)"
-        color="#34d399"
+        color="#047857"
       />
 
-      <div
-        className="rounded-xl p-4 col-span-2"
-        style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
-      >
+      <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm col-span-2">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">⚡</span>
-          <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">입출력 비율</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">입출력 비율</span>
         </div>
         <div className="flex gap-3 items-end mb-2">
           <div>
-            <div className="text-xs text-gray-500 mb-0.5">입력 토큰</div>
-            <div className="font-mono font-bold text-xl text-sky-400">{formatTokens(totalInput)}</div>
+            <div className="text-xs text-[#6b5344] mb-0.5">입력 토큰</div>
+            <div className="font-mono font-bold text-xl text-sky-700">{formatTokens(totalInput)}</div>
           </div>
-          <div className="text-gray-600 mb-1 text-lg font-light">/</div>
+          <div className="text-[#8c6248] mb-1 text-lg font-light">/</div>
           <div>
-            <div className="text-xs text-gray-500 mb-0.5">출력 토큰</div>
-            <div className="font-mono font-bold text-xl text-orange-400">{formatTokens(totalOutput)}</div>
+            <div className="text-xs text-[#6b5344] mb-0.5">출력 토큰</div>
+            <div className="font-mono font-bold text-xl text-[#c2410c]">{formatTokens(totalOutput)}</div>
           </div>
         </div>
-        <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#292524' }}>
+        <div className="h-2 rounded-full overflow-hidden bg-[#f0e4d8]">
           <div
             className="h-full rounded-full"
             style={{
               width: `${(totalInput / Math.max(totalTokens, 1)) * 100}%`,
-              background: 'linear-gradient(to right, #38bdf8, #fb923c)',
+              background: 'linear-gradient(to right, #0284c7, #ea580c)',
             }}
           />
         </div>
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <div className="flex justify-between text-xs text-[#6b5344] mt-1">
           <span>입력 {((totalInput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
           <span>출력 {((totalOutput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
         </div>
       </div>
 
-      <div
-        className="rounded-xl p-4"
-        style={{ backgroundColor: '#1c1917', border: '1px solid #292524' }}
-      >
+      <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">📈</span>
-          <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">일 평균</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">일 평균</span>
         </div>
-        <div className="font-mono font-bold text-2xl text-orange-300">{formatTokens(avgPerDay)}</div>
-        <div className="text-xs text-gray-500 mt-1">활성일 기준</div>
-        <div className="mt-2 pt-2" style={{ borderTop: '1px solid #292524' }}>
-          <div className="text-xs text-gray-500">최고 사용일</div>
-          <div className="text-sm text-gray-300 font-mono">{peakDate}</div>
-          <div className="text-xs text-orange-400 font-mono">{formatTokens(peak?.tokens ?? 0)}</div>
+        <div className="font-mono font-bold text-2xl text-[#c2410c]">{formatTokens(avgPerDay)}</div>
+        <div className="text-xs text-[#6b5344] mt-1">활성일 기준</div>
+        <div className="mt-2 pt-2 border-t border-[#ecdccc]">
+          <div className="text-xs text-[#6b5344]">최고 사용일</div>
+          <div className="text-sm text-[#3d2918] font-mono">{peakDate}</div>
+          <div className="text-xs font-mono text-[#c2410c]">{formatTokens(peak?.tokens ?? 0)}</div>
         </div>
       </div>
 
