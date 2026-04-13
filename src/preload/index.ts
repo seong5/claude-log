@@ -1,13 +1,25 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+
+const claudeLogAPI = {
+  getDays: () => ipcRenderer.invoke('claude-log:get-days'),
+  onUpdate: (callback: (days: unknown[]) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, days: unknown[]) => callback(days)
+    ipcRenderer.on('claude-log:update', handler)
+    return () => ipcRenderer.removeListener('claude-log:update', handler)
+  },
+}
 
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
+    contextBridge.exposeInMainWorld('claudeLog', claudeLogAPI)
   } catch (error) {
     console.error(error)
   }
 } else {
   // @ts-ignore
   window.electron = electronAPI
+  // @ts-ignore
+  window.claudeLog = claudeLogAPI
 }
