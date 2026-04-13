@@ -20,5 +20,18 @@
       "Bash(git -C /Users/seongohshin/Documents/claude-log add .claude/commands/push.md .claude/commands/pr.md)",
       "Bash(git -C /Users/seongohshin/Documents/claude-log commit -m ':*)"
     ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/seongohshin/Documents/claude-log/.claude/commands/hooks/notification-hook.sh"
+          }
+        ]
+      }
+    ]
   }
 }
