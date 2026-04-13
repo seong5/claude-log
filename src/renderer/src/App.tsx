@@ -21,17 +21,51 @@ export default function App(): React.JSX.Element {
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], [])
 
-  const filteredData = useMemo<DayData[]>(() => {
+  // Heatmap data: past N days + future dates through end of current month
+  const heatmapData = useMemo<DayData[]>(() => {
+    if (allDays.length === 0) return []
     const count = period === '3M' ? 91 : period === '6M' ? 182 : 365
-    return allDays.slice(-count)
-  }, [allDays, period])
+
+    const start = new Date(today + 'T00:00:00')
+    start.setDate(start.getDate() - count + 1)
+
+    // Extend through end of current month for forward-looking view
+    const end = new Date(today + 'T00:00:00')
+    end.setMonth(end.getMonth() + 1, 0)
+
+    const dataMap = new Map(allDays.map((d) => [d.date, d]))
+    const result: DayData[] = []
+    const cur = new Date(start)
+    while (cur <= end) {
+      const ds = cur.toISOString().split('T')[0]
+      result.push(
+        dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
+      )
+      cur.setDate(cur.getDate() + 1)
+    }
+    return result
+  }, [allDays, period, today])
+
+  // Stats data: only past + today (no future empty days)
+  const filteredData = useMemo<DayData[]>(
+    () => heatmapData.filter((d) => d.date <= today),
+    [heatmapData, today]
+  )
 
   const totalThisMonth = useMemo(() => {
     const ym = today.slice(0, 7)
     return allDays.filter((d) => d.date.startsWith(ym)).reduce((s, d) => s + d.tokens, 0)
   }, [allDays, today])
 
-  const last7Days = useMemo(() => allDays.slice(-7).reverse(), [allDays])
+  const last7Days = useMemo(() => {
+    const dataMap = new Map(allDays.map((d) => [d.date, d]))
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today + 'T00:00:00')
+      d.setDate(d.getDate() - i)
+      const ds = d.toISOString().split('T')[0]
+      return dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
+    })
+  }, [allDays, today])
   const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days])
 
   return (
@@ -196,9 +230,7 @@ export default function App(): React.JSX.Element {
                   <span className="text-xs font-semibold" style={{ color: '#c07050' }}>일 활성</span>
                 </div>
               </div>
-              <div className="overflow-x-auto pb-2">
-                <TokenHeatmap data={filteredData} />
-              </div>
+              <TokenHeatmap data={heatmapData} today={today} />
             </div>
 
             {/* Stats */}
