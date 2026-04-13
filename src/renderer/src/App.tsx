@@ -1,71 +1,38 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import TokenHeatmap, { type DayData } from './components/TokenHeatmap'
 import StatsPanel from './components/StatsPanel'
-
-// Generate 365 days of mock data ending today
-function generateMockData(): DayData[] {
-  const data: DayData[] = []
-  const today = new Date('2026-04-11')
-
-  // Seed-based pseudo-random for consistent renders
-  let seed = 42
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) & 0xffffffff
-    return (seed >>> 0) / 0xffffffff
-  }
-
-  for (let i = 364; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dow = date.getDay()
-    const isWeekday = dow !== 0 && dow !== 6
-
-    let tokens = 0
-    const active = rand() < (isWeekday ? 0.82 : 0.35)
-    if (active) {
-      const base = isWeekday ? rand() * 80_000 : rand() * 25_000
-      const spike = rand() < 0.08 ? rand() * 150_000 : 0
-      tokens = Math.floor(base + spike + 3_000)
-    }
-
-    const inputRatio = 0.55 + rand() * 0.1
-    const inputTokens = Math.floor(tokens * inputRatio)
-    const outputTokens = tokens - inputTokens
-    const sessions = tokens > 0 ? Math.ceil(rand() * 8 + 1) : 0
-
-    data.push({
-      date: date.toISOString().split('T')[0],
-      tokens,
-      inputTokens,
-      outputTokens,
-      sessions,
-    })
-  }
-  return data
-}
+import { useLogStore } from './store/useLogStore'
 
 type Period = '3M' | '6M' | '1Y'
 
+const formatTokensShort = (n: number): string => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return n.toString()
+}
+
 export default function App(): React.JSX.Element {
-  const allData = useMemo(() => generateMockData(), [])
+  const { days: allDays, loading, init } = useLogStore()
   const [period, setPeriod] = useState<Period>('1Y')
 
-  const filteredData = useMemo(() => {
-    const days = period === '3M' ? 91 : period === '6M' ? 182 : 365
-    return allData.slice(allData.length - days)
-  }, [allData, period])
+  useEffect(() => {
+    init()
+  }, [])
+
+  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+
+  const filteredData = useMemo<DayData[]>(() => {
+    const count = period === '3M' ? 91 : period === '6M' ? 182 : 365
+    return allDays.slice(-count)
+  }, [allDays, period])
 
   const totalThisMonth = useMemo(() => {
-    const now = new Date('2026-04-11')
-    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-    return allData.filter((d) => d.date.startsWith(ym)).reduce((s, d) => s + d.tokens, 0)
-  }, [allData])
+    const ym = today.slice(0, 7)
+    return allDays.filter((d) => d.date.startsWith(ym)).reduce((s, d) => s + d.tokens, 0)
+  }, [allDays, today])
 
-  const formatTokensShort = (n: number) => {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-    return n.toString()
-  }
+  const last7Days = useMemo(() => allDays.slice(-7).reverse(), [allDays])
+  const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days])
 
   return (
     <div
@@ -89,7 +56,6 @@ export default function App(): React.JSX.Element {
         }}
       >
         <div className="flex items-center gap-3">
-          {/* Mascot icon */}
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center mascot-float overflow-hidden"
             style={{ boxShadow: '0 2px 8px rgba(217, 98, 42, 0.25)' }}
@@ -140,10 +106,7 @@ export default function App(): React.JSX.Element {
             }}
           >
             이번 달{' '}
-            <span
-              className="font-mono font-bold ml-1"
-              style={{ color: '#d9622a' }}
-            >
+            <span className="font-mono font-bold ml-1" style={{ color: '#d9622a' }}>
               {formatTokensShort(totalThisMonth)}
             </span>
           </div>
@@ -190,124 +153,136 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Heatmap Card */}
-        <div
-          className="rounded-3xl p-6"
-          style={{
-            backgroundColor: '#fffcf8',
-            border: '1px solid #ecdccc',
-            boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
-          }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="font-extrabold text-base" style={{ color: '#3a2010' }}>
-                🗓 활동 히트맵
-              </h2>
-              <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
-                {period === '1Y' ? '최근 1년' : period === '6M' ? '최근 6개월' : '최근 3개월'} 토큰 사용 기록
-              </p>
-            </div>
+        {loading ? (
+          <div
+            className="rounded-3xl p-12 flex items-center justify-center"
+            style={{
+              backgroundColor: '#fffcf8',
+              border: '1px solid #ecdccc',
+            }}
+          >
+            <p className="text-sm font-semibold" style={{ color: '#c0a090' }}>
+              JSONL 파일 파싱 중…
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Heatmap Card */}
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: '#fde8d5', border: '1px solid #f4c4a0' }}
+              className="rounded-3xl p-6"
+              style={{
+                backgroundColor: '#fffcf8',
+                border: '1px solid #ecdccc',
+                boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
+              }}
             >
-              <span className="text-sm">🔥</span>
-              <span className="font-bold text-sm" style={{ color: '#d9622a' }}>
-                {filteredData.filter((d) => d.tokens > 0).length}
-              </span>
-              <span className="text-xs font-semibold" style={{ color: '#c07050' }}>일 활성</span>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="font-extrabold text-base" style={{ color: '#3a2010' }}>
+                    🗓 활동 히트맵
+                  </h2>
+                  <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
+                    {period === '1Y' ? '최근 1년' : period === '6M' ? '최근 6개월' : '최근 3개월'} 토큰 사용 기록
+                  </p>
+                </div>
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+                  style={{ backgroundColor: '#fde8d5', border: '1px solid #f4c4a0' }}
+                >
+                  <span className="text-sm">🔥</span>
+                  <span className="font-bold text-sm" style={{ color: '#d9622a' }}>
+                    {filteredData.filter((d) => d.tokens > 0).length}
+                  </span>
+                  <span className="text-xs font-semibold" style={{ color: '#c07050' }}>일 활성</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto pb-2">
+                <TokenHeatmap data={filteredData} />
+              </div>
             </div>
-          </div>
-          <div className="overflow-x-auto pb-2">
-            <TokenHeatmap data={filteredData} />
-          </div>
-        </div>
 
-        {/* Stats */}
-        <div>
-          <h2 className="font-extrabold text-base mb-3" style={{ color: '#3a2010' }}>
-            📊 요약 통계
-          </h2>
-          <StatsPanel data={filteredData} />
-        </div>
+            {/* Stats */}
+            <div>
+              <h2 className="font-extrabold text-base mb-3" style={{ color: '#3a2010' }}>
+                📊 요약 통계
+              </h2>
+              <StatsPanel data={filteredData} />
+            </div>
 
-        {/* Recent activity */}
-        <div
-          className="rounded-3xl p-6"
-          style={{
-            backgroundColor: '#fffcf8',
-            border: '1px solid #ecdccc',
-            boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
-          }}
-        >
-          <h2 className="font-extrabold text-base mb-5" style={{ color: '#3a2010' }}>
-            📅 최근 7일 활동
-          </h2>
-          <div className="space-y-2.5">
-            {allData
-              .slice(-7)
-              .reverse()
-              .map((day) => {
-                const date = new Date(day.date + 'T00:00:00')
-                const isToday = day.date === '2026-04-11'
-                const maxT = Math.max(...allData.slice(-7).map((d) => d.tokens), 1)
-                const pct = (day.tokens / maxT) * 100
-                return (
-                  <div key={day.date} className="flex items-center gap-3">
-                    <div
-                      className="text-xs font-bold w-24 shrink-0 flex items-center gap-1.5"
-                      style={{ color: '#9a7060' }}
-                    >
-                      {isToday ? (
-                        <span
-                          className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                          style={{ backgroundColor: '#fde8d5', color: '#d9622a', border: '1px solid #f4c4a0' }}
-                        >
-                          오늘
-                        </span>
-                      ) : (
-                        date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })
-                      )}
-                    </div>
-                    <div
-                      className="flex-1 h-6 rounded-full overflow-hidden"
-                      style={{ backgroundColor: '#f5ebe0' }}
-                    >
-                      {day.tokens > 0 && (
-                        <div
-                          className="h-full rounded-full flex items-center px-3 transition-all duration-500"
-                          style={{
-                            width: `${Math.max(pct, 5)}%`,
-                            background: 'linear-gradient(to right, #f4a055, #d9622a)',
-                          }}
-                        >
+            {/* Recent activity */}
+            <div
+              className="rounded-3xl p-6"
+              style={{
+                backgroundColor: '#fffcf8',
+                border: '1px solid #ecdccc',
+                boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
+              }}
+            >
+              <h2 className="font-extrabold text-base mb-5" style={{ color: '#3a2010' }}>
+                📅 최근 7일 활동
+              </h2>
+              <div className="space-y-2.5">
+                {last7Days.map((day) => {
+                  const date = new Date(day.date + 'T00:00:00')
+                  const isToday = day.date === today
+                  const pct = (day.tokens / maxLast7) * 100
+                  return (
+                    <div key={day.date} className="flex items-center gap-3">
+                      <div
+                        className="text-xs font-bold w-24 shrink-0 flex items-center gap-1.5"
+                        style={{ color: '#9a7060' }}
+                      >
+                        {isToday ? (
                           <span
-                            className="text-[10px] font-bold font-mono whitespace-nowrap overflow-hidden"
-                            style={{ color: '#fff8f4' }}
+                            className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                            style={{ backgroundColor: '#fde8d5', color: '#d9622a', border: '1px solid #f4c4a0' }}
                           >
-                            {pct > 30 ? formatTokensShort(day.tokens) : ''}
+                            오늘
                           </span>
-                        </div>
-                      )}
+                        ) : (
+                          date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', weekday: 'short' })
+                        )}
+                      </div>
+                      <div
+                        className="flex-1 h-6 rounded-full overflow-hidden"
+                        style={{ backgroundColor: '#f5ebe0' }}
+                      >
+                        {day.tokens > 0 && (
+                          <div
+                            className="h-full rounded-full flex items-center px-3 transition-all duration-500"
+                            style={{
+                              width: `${Math.max(pct, 5)}%`,
+                              background: 'linear-gradient(to right, #f4a055, #d9622a)',
+                            }}
+                          >
+                            <span
+                              className="text-[10px] font-bold font-mono whitespace-nowrap overflow-hidden"
+                              style={{ color: '#fff8f4' }}
+                            >
+                              {pct > 30 ? formatTokensShort(day.tokens) : ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="text-xs font-mono font-bold w-16 text-right shrink-0"
+                        style={{ color: day.tokens > 0 ? '#9a7060' : '#d4b8a4' }}
+                      >
+                        {day.tokens > 0 ? formatTokensShort(day.tokens) : '—'}
+                      </div>
+                      <div
+                        className="text-xs font-semibold w-10 text-right shrink-0"
+                        style={{ color: '#c0a090' }}
+                      >
+                        {day.sessions > 0 ? `${day.sessions}회` : ''}
+                      </div>
                     </div>
-                    <div
-                      className="text-xs font-mono font-bold w-16 text-right shrink-0"
-                      style={{ color: day.tokens > 0 ? '#9a7060' : '#d4b8a4' }}
-                    >
-                      {day.tokens > 0 ? formatTokensShort(day.tokens) : '—'}
-                    </div>
-                    <div
-                      className="text-xs font-semibold w-10 text-right shrink-0"
-                      style={{ color: '#c0a090' }}
-                    >
-                      {day.sessions > 0 ? `${day.sessions}회` : ''}
-                    </div>
-                  </div>
-                )
-              })}
-          </div>
-        </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Footer */}
@@ -316,7 +291,7 @@ export default function App(): React.JSX.Element {
         style={{ borderTop: '1px solid #ecdccc' }}
       >
         <p className="text-xs font-semibold text-center" style={{ color: '#c0a090' }}>
-          Claude Log · 데이터는 로컬에 저장됩니다 · Mock data for UI preview 🌿
+          Claude Log · 데이터는 로컬에 저장됩니다 · ~/.claude/projects/**/*.jsonl
         </p>
       </footer>
     </div>

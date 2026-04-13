@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { logService } from './log-service'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -37,6 +38,12 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // IPC: renderer asks for initial aggregated data
+  ipcMain.handle('claude-log:get-days', () => logService.getDays())
+
+  // Start parsing + watching JSONL files
+  logService.init()
+
   createWindow()
 
   app.on('activate', function () {
@@ -45,6 +52,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  logService.destroy()
   if (process.platform !== 'darwin') {
     app.quit()
   }
