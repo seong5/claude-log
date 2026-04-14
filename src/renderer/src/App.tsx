@@ -32,9 +32,23 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     init()
-  }, [])
+    return () => useLogStore.getState().destroy()
+  }, [init])
 
-  const today = useMemo(() => formatLocalYmd(new Date()), [])
+  const [today, setToday] = useState(() => formatLocalYmd(new Date()))
+
+  useEffect(() => {
+    const checkDate = (): void => {
+      const current = formatLocalYmd(new Date())
+      setToday((prev) => (prev !== current ? current : prev))
+    }
+    const id = setInterval(checkDate, 60_000)
+    document.addEventListener('visibilitychange', checkDate)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', checkDate)
+    }
+  }, [])
 
   // 히트맵: 1년(1/1~연말·이번 달 말 중 이른 날) 또는 이번 달 1일~말일
   const heatmapData = useMemo<DayData[]>(() => {
@@ -63,7 +77,7 @@ export default function App(): React.JSX.Element {
     while (cur <= end) {
       const ds = formatLocalYmd(cur)
       result.push(
-        dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
+        dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelBreakdown: {} }
       )
       cur.setDate(cur.getDate() + 1)
     }
@@ -87,7 +101,7 @@ export default function App(): React.JSX.Element {
       const d = new Date(today + 'T00:00:00')
       d.setDate(d.getDate() - i)
       const ds = formatLocalYmd(d)
-      return dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
+      return dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0, modelBreakdown: {} }
     })
   }, [allDays, today])
   const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days])
@@ -100,7 +114,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <div
-      className="min-h-screen overflow-auto"
+      className="h-screen overflow-auto"
       style={{
         backgroundColor: '#fdf6ec',
         fontFamily: "'Nunito', system-ui, sans-serif",
@@ -111,7 +125,7 @@ export default function App(): React.JSX.Element {
     >
       {/* Top Navigation */}
       <header
-        className="sticky top-0 z-40 flex items-center justify-between px-6 py-3"
+        className="sticky top-0 z-40 flex items-center justify-between px-4 py-2"
         style={{
           backgroundColor: 'rgba(253, 246, 236, 0.88)',
           backdropFilter: 'blur(16px)',
@@ -177,17 +191,17 @@ export default function App(): React.JSX.Element {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <main className="px-4 py-4 space-y-4">
         {/* Hero section */}
         <div className="flex items-center justify-between">
           <div>
             <h1
-              className="text-3xl font-extrabold mb-1"
+              className="text-xl font-extrabold mb-0.5"
               style={{ color: '#3a2010', letterSpacing: '-0.02em' }}
             >
               토큰 사용량 ✨
             </h1>
-            <p className="text-sm font-medium" style={{ color: '#9a7060' }}>
+            <p className="text-xs font-medium" style={{ color: '#9a7060' }}>
               Claude Code 세션의 일별 토큰 소비량을 추적합니다
             </p>
           </div>
@@ -238,16 +252,16 @@ export default function App(): React.JSX.Element {
           <>
             {/* Heatmap Card */}
             <div
-              className="rounded-3xl p-6"
+              className="rounded-2xl p-4"
               style={{
                 backgroundColor: '#fffcf8',
                 border: '1px solid #ecdccc',
                 boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
               }}
             >
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h2 className="font-extrabold text-base" style={{ color: '#3a2010' }}>
+                  <h2 className="font-extrabold text-sm" style={{ color: '#3a2010' }}>
                     🗓 활동 히트맵
                   </h2>
                   <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
@@ -270,7 +284,7 @@ export default function App(): React.JSX.Element {
 
             {/* Stats */}
             <div>
-              <h2 className="font-extrabold text-base mb-3" style={{ color: '#3a2010' }}>
+              <h2 className="font-extrabold text-sm mb-2" style={{ color: '#3a2010' }}>
                 📊 요약 통계
               </h2>
               <StatsPanel data={filteredData} />
@@ -278,14 +292,14 @@ export default function App(): React.JSX.Element {
 
             {/* Recent activity */}
             <div
-              className="rounded-3xl p-6"
+              className="rounded-2xl p-4"
               style={{
                 backgroundColor: '#fffcf8',
                 border: '1px solid #ecdccc',
                 boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
               }}
             >
-              <h2 className="font-extrabold text-base mb-5" style={{ color: '#3a2010' }}>
+              <h2 className="font-extrabold text-sm mb-3" style={{ color: '#3a2010' }}>
                 📅 최근 7일 활동
               </h2>
               <div className="space-y-2.5">
@@ -354,10 +368,10 @@ export default function App(): React.JSX.Element {
 
       {/* Footer */}
       <footer
-        className="max-w-6xl mx-auto px-6 py-6 mt-4"
+        className="px-4 py-3 mt-2"
         style={{ borderTop: '1px solid #ecdccc' }}
       >
-        <p className="text-xs font-semibold text-center" style={{ color: '#c0a090' }}>
+        <p className="text-[10px] font-semibold text-center" style={{ color: '#c0a090' }}>
           Claude Log · 데이터는 로컬에 저장됩니다 · ~/.claude/projects/**/*.jsonl
         </p>
       </footer>

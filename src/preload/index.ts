@@ -1,10 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { DayData } from './index.d'
 
 const claudeLogAPI = {
   getDays: () => ipcRenderer.invoke('claude-log:get-days'),
-  onUpdate: (callback: (days: unknown[]) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, days: unknown[]) => callback(days)
+  onUpdate: (callback: (days: DayData[]) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, days: DayData[]) => callback(days)
     ipcRenderer.on('claude-log:update', handler)
     return () => ipcRenderer.removeListener('claude-log:update', handler)
   },

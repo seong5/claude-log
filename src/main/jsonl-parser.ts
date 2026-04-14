@@ -5,6 +5,7 @@ import * as os from 'os'
 export interface ParsedEntry {
   timestamp: string
   sessionId: string
+  model: string
   inputTokens: number
   outputTokens: number
 }
@@ -15,6 +16,7 @@ export interface DayData {
   inputTokens: number
   outputTokens: number
   sessions: number
+  modelBreakdown: Record<string, number>
 }
 
 export function getClaudeProjectsDir(): string {
@@ -89,6 +91,7 @@ export function parseJSONLFrom(
               entries.push({
                 timestamp: obj.timestamp,
                 sessionId: obj.sessionId,
+                model: obj.message?.model || obj.model || 'unknown',
                 inputTokens:
                   (u.input_tokens || 0) +
                   (u.cache_creation_input_tokens || 0) +
@@ -113,7 +116,12 @@ export function parseJSONLFrom(
   }
 }
 
-type DayAccum = { inputTokens: number; outputTokens: number; sessions: Set<string> }
+export type DayAccum = {
+  inputTokens: number
+  outputTokens: number
+  sessions: Set<string>
+  models: Map<string, number>
+}
 
 export function mergeEntriesToMap(
   map: Map<string, DayAccum>,
@@ -122,12 +130,14 @@ export function mergeEntriesToMap(
   for (const entry of entries) {
     const date = entry.timestamp.split('T')[0]
     if (!map.has(date)) {
-      map.set(date, { inputTokens: 0, outputTokens: 0, sessions: new Set() })
+      map.set(date, { inputTokens: 0, outputTokens: 0, sessions: new Set(), models: new Map() })
     }
     const day = map.get(date)!
+    const entryTotal = entry.inputTokens + entry.outputTokens
     day.inputTokens += entry.inputTokens
     day.outputTokens += entry.outputTokens
     day.sessions.add(entry.sessionId)
+    day.models.set(entry.model, (day.models.get(entry.model) ?? 0) + entryTotal)
   }
 }
 
@@ -140,5 +150,6 @@ export function dayMapToArray(map: Map<string, DayAccum>): DayData[] {
       outputTokens: day.outputTokens,
       tokens: day.inputTokens + day.outputTokens,
       sessions: day.sessions.size,
+      modelBreakdown: Object.fromEntries(day.models),
     }))
 }
