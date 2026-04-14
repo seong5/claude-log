@@ -6,6 +6,7 @@ export interface DayData {
   inputTokens: number
   outputTokens: number
   sessions: number
+  modelBreakdown: Record<string, number>
 }
 
 export interface ClaudeLogAPI {

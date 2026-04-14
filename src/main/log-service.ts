@@ -8,9 +8,8 @@ import {
   mergeEntriesToMap,
   dayMapToArray,
   DayData,
+  DayAccum,
 } from './jsonl-parser'
-
-type DayAccum = { inputTokens: number; outputTokens: number; sessions: Set<string> }
 
 interface WatchedFile {
   offset: number
@@ -22,6 +21,7 @@ class LogService {
   private dayMap = new Map<string, DayAccum>()
   private dirWatcher: fs.FSWatcher | null = null
   private debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private onUpdateCallback: ((todayTokens: number) => void) | null = null
 
   init(): void {
     const files = getAllJSONLFiles()
@@ -39,8 +39,19 @@ class LogService {
     this.watchProjectsDir()
   }
 
+  setOnUpdate(cb: (todayTokens: number) => void): void {
+    this.onUpdateCallback = cb
+  }
+
   getDays(): DayData[] {
     return dayMapToArray(this.dayMap)
+  }
+
+  getTodayTokens(): number {
+    const today = new Date()
+    const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const day = this.dayMap.get(ymd)
+    return day ? day.inputTokens + day.outputTokens : 0
   }
 
   private startWatcher(filePath: string): void {
@@ -85,6 +96,7 @@ class LogService {
         win.webContents.send('claude-log:update', days)
       }
     }
+    this.onUpdateCallback?.(this.getTodayTokens())
   }
 
   private watchProjectsDir(): void {
