@@ -115,22 +115,3 @@
   animation: cozy-pulse 1.8s ease-in-out infinite;
 }
 
-/* Future heatmap cell — very gentle shimmer to suggest "waiting" */
-@keyframes future-shimmer {
-  0%, 100% { opacity: 0.45; }
-  50% { opacity: 0.85; }
-}
-
-.future-cell {
-  animation: future-shimmer 3s ease-in-out infinite;
-}
-
-/* Today cell glow ring */
-@keyframes today-ring-pulse {
-  0%, 100% { box-shadow: 0 0 0 1.5px rgba(244, 160, 85, 0.55); }
-  50% { box-shadow: 0 0 0 2.5px rgba(244, 160, 85, 0.25); }
-}
-
-.today-cell {
-  animation: today-ring-pulse 2.2s ease-in-out infinite;
-}

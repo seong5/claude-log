@@ -184,25 +184,25 @@ export default function TokenHeatmap({ data, today }: Props) {
                   }
 
                   const isFuture = day.date > today;
-                  const isToday = day.date === today;
                   const level = getIntensityLevel(day.tokens, maxTokens);
 
-                  // ── Future cell ──
+                  // ── Future cell (시각은 사용량 0인 날과 동일, 툴팁만 예정) ──
                   if (isFuture) {
                     return (
                       <div
                         key={di}
-                        className="future-cell"
                         style={{
                           width: CELL,
                           height: CELL,
                           borderRadius: 2,
-                          background: "rgba(244, 160, 85, 0.05)",
-                          border: "1px dashed rgba(217, 98, 42, 0.22)",
+                          backgroundColor: INTENSITY_COLORS[0],
+                          border: `1px solid ${EMPTY_CELL_BORDER}`,
                           boxSizing: "border-box",
                           flexShrink: 0,
-                          cursor: "default",
+                          cursor: "pointer",
+                          transition: "transform 0.1s",
                         }}
+                        className="hover:scale-125 hover:z-10"
                         onMouseEnter={(e) => {
                           const rect = (e.target as HTMLElement).getBoundingClientRect();
                           setTooltip({
@@ -218,47 +218,13 @@ export default function TokenHeatmap({ data, today }: Props) {
                     );
                   }
 
-                  // ── Today cell ──
-                  if (isToday) {
-                    const todayBg = level > 0 ? INTENSITY_COLORS[level] : "rgba(244, 160, 85, 0.16)";
-                    return (
-                      <div
-                        key={di}
-                        ref={todayCellRef}
-                        className="today-cell"
-                        style={{
-                          width: CELL,
-                          height: CELL,
-                          borderRadius: 2,
-                          backgroundColor: todayBg,
-                          border: "1.5px solid #d9622a",
-                          boxSizing: "border-box",
-                          flexShrink: 0,
-                          cursor: "pointer",
-                          transition: "transform 0.1s",
-                          position: "relative",
-                        }}
-                        onMouseEnter={(e) => {
-                          const rect = (e.target as HTMLElement).getBoundingClientRect();
-                          setTooltip({
-                            visible: true,
-                            x: rect.left + rect.width / 2,
-                            y: rect.top - 8,
-                            data: day,
-                            isFuture: false,
-                          });
-                        }}
-                        onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
-                      />
-                    );
-                  }
-
-                  // ── Past cell ──
+                  // ── 과거·오늘: 사용량 강도 색만 (오늘 전용 스타일 없음) ──
                   const bg = INTENSITY_COLORS[level];
                   const isEmpty = level === 0;
                   return (
                     <div
                       key={di}
+                      ref={day.date === today ? todayCellRef : undefined}
                       style={{
                         width: CELL,
                         height: CELL,
@@ -310,36 +276,6 @@ export default function TokenHeatmap({ data, today }: Props) {
           />
         ))}
         <span style={{ fontSize: 10, color: "#9a8070" }}>많음</span>
-
-        {/* Separator */}
-        <div style={{ width: 1, height: 12, background: "#ecdccc", margin: "0 4px" }} />
-
-        {/* Today legend */}
-        <div
-          className="today-cell"
-          style={{
-            width: CELL,
-            height: CELL,
-            borderRadius: 2,
-            background: "rgba(244, 160, 85, 0.16)",
-            border: "1.5px solid #d9622a",
-            boxSizing: "border-box",
-          }}
-        />
-        <span style={{ fontSize: 10, color: "#9a8070" }}>오늘</span>
-
-        {/* Future legend */}
-        <div
-          style={{
-            width: CELL,
-            height: CELL,
-            borderRadius: 2,
-            background: "rgba(244, 160, 85, 0.05)",
-            border: "1px dashed rgba(217, 98, 42, 0.3)",
-            boxSizing: "border-box",
-          }}
-        />
-        <span style={{ fontSize: 10, color: "#9a8070" }}>예정</span>
       </div>
 
       {/* Tooltip */}
