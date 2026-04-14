@@ -3,7 +3,14 @@ import TokenHeatmap, { type DayData } from './components/TokenHeatmap'
 import StatsPanel from './components/StatsPanel'
 import { useLogStore } from './store/useLogStore'
 
-type Period = '3M' | '6M' | '1Y'
+type HeatmapTab = '1Y' | 'THIS_MONTH'
+
+/** 1년 히트맵 시작일(해당 연도 1월 1일) */
+const USAGE_HEATMAP_YEAR_START = '2026-01-01'
+
+function usageHeatmapYear(): number {
+  return parseInt(USAGE_HEATMAP_YEAR_START.slice(0, 4), 10)
+}
 
 const formatTokensShort = (n: number): string => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -11,40 +18,57 @@ const formatTokensShort = (n: number): string => {
   return n.toString()
 }
 
+/** 로컬 달력 기준 YYYY-MM-DD (toISOString UTC 시프트로 12월/1월 레이블이 겹치는 문제 방지) */
+function formatLocalYmd(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export default function App(): React.JSX.Element {
   const { days: allDays, loading, init } = useLogStore()
-  const [period, setPeriod] = useState<Period>('1Y')
+  const [heatmapTab, setHeatmapTab] = useState<HeatmapTab>('1Y')
 
   useEffect(() => {
     init()
   }, [])
 
-  const today = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const today = useMemo(() => formatLocalYmd(new Date()), [])
 
-  // Heatmap data: past N days + future dates through end of current month
+  // 히트맵: 1년(1/1~연말·이번 달 말 중 이른 날) 또는 이번 달 1일~말일
   const heatmapData = useMemo<DayData[]>(() => {
     if (allDays.length === 0) return []
-    const count = period === '3M' ? 91 : period === '6M' ? 182 : 365
 
-    const start = new Date(today + 'T00:00:00')
-    start.setDate(start.getDate() - count + 1)
+    let start: Date
+    let end: Date
 
-    // Extend through end of current month for forward-looking view
-    const end = new Date(today + 'T00:00:00')
-    end.setMonth(end.getMonth() + 1, 0)
+    if (heatmapTab === '1Y') {
+      start = new Date(`${USAGE_HEATMAP_YEAR_START}T00:00:00`)
+      const y = usageHeatmapYear()
+      const yearEnd = new Date(y, 12, 0)
+      const endOfThisMonth = new Date(today + 'T00:00:00')
+      endOfThisMonth.setMonth(endOfThisMonth.getMonth() + 1, 0)
+      end = yearEnd.getTime() <= endOfThisMonth.getTime() ? yearEnd : endOfThisMonth
+    } else {
+      start = new Date(today + 'T00:00:00')
+      start.setDate(1)
+      end = new Date(today + 'T00:00:00')
+      end.setMonth(end.getMonth() + 1, 0)
+    }
 
     const dataMap = new Map(allDays.map((d) => [d.date, d]))
     const result: DayData[] = []
     const cur = new Date(start)
     while (cur <= end) {
-      const ds = cur.toISOString().split('T')[0]
+      const ds = formatLocalYmd(cur)
       result.push(
         dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
       )
       cur.setDate(cur.getDate() + 1)
     }
     return result
-  }, [allDays, period, today])
+  }, [allDays, heatmapTab, today])
 
   // Stats data: only past + today (no future empty days)
   const filteredData = useMemo<DayData[]>(
@@ -62,11 +86,17 @@ export default function App(): React.JSX.Element {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today + 'T00:00:00')
       d.setDate(d.getDate() - i)
-      const ds = d.toISOString().split('T')[0]
+      const ds = formatLocalYmd(d)
       return dataMap.get(ds) ?? { date: ds, tokens: 0, inputTokens: 0, outputTokens: 0, sessions: 0 }
     })
   }, [allDays, today])
   const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days])
+
+  const hy = usageHeatmapYear()
+  const heatmapPeriodLabel =
+    heatmapTab === '1Y'
+      ? `${hy}년 1월부터`
+      : new Date(today + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })
 
   return (
     <div
@@ -161,18 +191,23 @@ export default function App(): React.JSX.Element {
               Claude Code 세션의 일별 토큰 소비량을 추적합니다
             </p>
           </div>
-          {/* Period selector */}
+          {/* 히트맵 기간: 1년 / 이번 달 */}
           <div
             className="flex gap-1 p-1 rounded-2xl"
             style={{ backgroundColor: '#f5ebe0', border: '1px solid #ecdccc' }}
           >
-            {(['3M', '6M', '1Y'] as Period[]).map((p) => (
+            {(
+              [
+                { id: '1Y' as const, label: '1년' },
+                { id: 'THIS_MONTH' as const, label: '이번 달' },
+              ] as const
+            ).map(({ id, label }) => (
               <button
-                key={p}
-                onClick={() => setPeriod(p)}
+                key={id}
+                onClick={() => setHeatmapTab(id)}
                 className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
                 style={
-                  period === p
+                  heatmapTab === id
                     ? {
                         backgroundColor: '#fffcf8',
                         color: '#d9622a',
@@ -181,7 +216,7 @@ export default function App(): React.JSX.Element {
                     : { color: '#b89680' }
                 }
               >
-                {p === '3M' ? '3개월' : p === '6M' ? '6개월' : '1년'}
+                {label}
               </button>
             ))}
           </div>
@@ -216,7 +251,7 @@ export default function App(): React.JSX.Element {
                     🗓 활동 히트맵
                   </h2>
                   <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
-                    {period === '1Y' ? '최근 1년' : period === '6M' ? '최근 6개월' : '최근 3개월'} 토큰 사용 기록
+                    {heatmapPeriodLabel} 토큰 사용 기록
                   </p>
                 </div>
                 <div
