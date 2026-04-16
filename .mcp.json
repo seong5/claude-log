@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "shrimp-task-manager": {
+      "command": "node",
+      "args": ["/Users/seongohshin/Documents/mcp-shrimp-task-manager/dist/index.js"],
+      "env": {
+        "DATA_DIR": "/Users/seongohshin/Documents/claude-log/shrimp_data",
+        "TEMPLATES_USE": "ko",
+        "ENABLE_GUI": "false"
+      }
+    }
+  }
+}
