@@ -39,3 +39,7 @@ npm run build:linux  # Linux .AppImage 패키징
 
 - 개발: Vite 개발 서버(렌더러) + `ELECTRON_RENDERER_URL`에서 로드하는 Electron
 - 프로덕션: `out/`에 컴파일(Electron 프로세스), electron-builder로 `dist/`에 패키징
+
+## 에이전트 실행 규칙
+
+- Agent 도구 호출 시 `isolation: "worktree"` 옵션을 사용하지 마세요.
