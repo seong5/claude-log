@@ -17,14 +17,13 @@ interface TooltipState {
   isFuture: boolean;
 }
 
-// Past data: darker = more usage
+// Heatmap usage colors (Less -> More) matched to provided reference
 const INTENSITY_COLORS = [
   "#ffffff",  // level 0 - no usage
-  "#7c2d12",  // level 1 - low
-  "#c2410c",  // level 2 - medium-low
-  "#ea580c",  // level 3 - medium-high
-  "#fb923c",  // level 4 - high
-  "#fed7aa",  // level 5 - very high
+  "#5a453c",  // level 1 - low
+  "#8f5a4a",  // level 2 - medium
+  "#c16f57",  // level 3 - high
+  "#f7a24f",  // level 4 - very high (brighter orange)
 ];
 
 const EMPTY_CELL_BORDER = "#ecdccc";
@@ -32,11 +31,10 @@ const EMPTY_CELL_BORDER = "#ecdccc";
 function getIntensityLevel(tokens: number, maxTokens: number): number {
   if (tokens === 0) return 0;
   const ratio = tokens / maxTokens;
-  if (ratio < 0.15) return 1;
-  if (ratio < 0.35) return 2;
-  if (ratio < 0.6) return 3;
-  if (ratio < 0.85) return 4;
-  return 5;
+  if (ratio < 0.2) return 1;
+  if (ratio < 0.45) return 2;
+  if (ratio < 0.75) return 3;
+  return 4;
 }
 
 function formatTokens(n: number): string {
