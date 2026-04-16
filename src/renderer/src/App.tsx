@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import TokenHeatmap, { type DayData } from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
+import UsagePanel from "./components/UsagePanel";
 import { useLogStore } from "./store/useLogStore";
+import { useUsageEstimator } from "./hooks/useUsageEstimator";
+import type { SessionData } from "../../preload/index.d";
 
 type HeatmapTab = "1Y" | "THIS_MONTH";
 
@@ -29,10 +32,39 @@ function formatLocalYmd(d: Date): string {
 export default function App(): React.JSX.Element {
   const { days: allDays, loading, init } = useLogStore();
   const [heatmapTab, setHeatmapTab] = useState<HeatmapTab>("1Y");
+  const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
+  const [recentFiveHourTokens, setRecentFiveHourTokens] = useState(0);
+  const [oldestRecentEntryTime, setOldestRecentEntryTime] = useState<number | null>(null);
+  const sessionTokens = currentSession?.tokens ?? 0;
+  const currentBlockTokens = currentSession?.blockTokens ?? 0;
+  const blockStartedAt = currentSession?.blockStartTimestamp
+    ? Date.parse(currentSession.blockStartTimestamp)
+    : Date.now();
+  // 슬라이딩 윈도우 기반 리셋 시간: 가장 오래된 항목 + 5시간
+  const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
+  const blockEndsAt = oldestRecentEntryTime
+    ? oldestRecentEntryTime + FIVE_HOUR_MS
+    : Date.now() + FIVE_HOUR_MS;
+  const usageEstimator = useUsageEstimator(recentFiveHourTokens, blockStartedAt, blockEndsAt);
+  const handleCaptureLimit = (): void => {
+    if (recentFiveHourTokens <= 0) return;
+    usageEstimator.setManualLimit(recentFiveHourTokens);
+  };
 
   useEffect(() => {
     init();
-    return () => useLogStore.getState().destroy();
+    window.claudeLog.getCurrentSession().then(setCurrentSession);
+    window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
+    window.claudeLog.getOldestRecentEntryTime().then(setOldestRecentEntryTime);
+    const unsub = window.claudeLog.onUpdate(() => {
+      window.claudeLog.getCurrentSession().then(setCurrentSession);
+      window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
+      window.claudeLog.getOldestRecentEntryTime().then(setOldestRecentEntryTime);
+    });
+    return () => {
+      useLogStore.getState().destroy();
+      unsub();
+    };
   }, [init]);
 
   const [today, setToday] = useState(() => formatLocalYmd(new Date()));
@@ -305,6 +337,17 @@ export default function App(): React.JSX.Element {
               </div>
               <TokenHeatmap data={heatmapData} today={today} />
             </div>
+
+            {/* Usage Panel */}
+            <UsagePanel
+              currentSessionTokens={sessionTokens}
+              currentBlockTokens={currentBlockTokens}
+              recentFiveHourTokens={recentFiveHourTokens}
+              estimatedLimit={usageEstimator.estimatedLimit}
+              usagePct={usageEstimator.usagePct}
+              blockEndsAt={usageEstimator.blockEndsAt}
+              onCaptureLimit={handleCaptureLimit}
+            />
 
             {/* Stats */}
             <div>

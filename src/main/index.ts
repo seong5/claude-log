@@ -112,6 +112,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle("claude-log:get-days", () => logService.getDays());
+  ipcMain.handle("claude-log:get-current-session", () => logService.getCurrentSession());
+  ipcMain.handle("claude-log:get-recent-five-hour-tokens", () => logService.getRecentFiveHourTokens());
+  ipcMain.handle("claude-log:get-oldest-recent-entry-time", () => logService.getOldestRecentEntryTime());
 
   logService.init();
   logService.setOnUpdate((todayTokens) => updateTrayTitle(todayTokens));

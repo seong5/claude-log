@@ -116,6 +116,50 @@ export function parseJSONLFrom(
   }
 }
 
+export interface SessionData {
+  sessionId: string
+  tokens: number
+  inputTokens: number
+  outputTokens: number
+  blockTokens: number
+  firstTimestamp: string
+  blockStartTimestamp: string
+  blockEndTimestamp: string
+  lastTimestamp: string
+}
+
+export type SessionAccum = {
+  inputTokens: number
+  outputTokens: number
+  firstTimestamp: string
+  lastTimestamp: string
+  entries: Array<{ timestamp: string; tokens: number }>
+}
+
+export function mergeEntriesToSessionMap(
+  map: Map<string, SessionAccum>,
+  entries: ParsedEntry[]
+): void {
+  for (const entry of entries) {
+    const existing = map.get(entry.sessionId)
+    if (existing) {
+      existing.inputTokens += entry.inputTokens
+      existing.outputTokens += entry.outputTokens
+      existing.entries.push({ timestamp: entry.timestamp, tokens: entry.inputTokens + entry.outputTokens })
+      if (entry.timestamp < existing.firstTimestamp) existing.firstTimestamp = entry.timestamp
+      if (entry.timestamp > existing.lastTimestamp) existing.lastTimestamp = entry.timestamp
+    } else {
+      map.set(entry.sessionId, {
+        inputTokens: entry.inputTokens,
+        outputTokens: entry.outputTokens,
+        firstTimestamp: entry.timestamp,
+        lastTimestamp: entry.timestamp,
+        entries: [{ timestamp: entry.timestamp, tokens: entry.inputTokens + entry.outputTokens }],
+      })
+    }
+  }
+}
+
 export type DayAccum = {
   inputTokens: number
   outputTokens: number
