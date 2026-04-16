@@ -19,7 +19,8 @@
       "Read(//Users/seongohshin/.claude/projects/**)",
       "Bash(git -C /Users/seongohshin/Documents/claude-log add .claude/commands/push.md .claude/commands/pr.md)",
       "Bash(git -C /Users/seongohshin/Documents/claude-log commit -m ':*)",
-      "mcp__shrimp-task-manager__list_tasks"
+      "mcp__shrimp-task-manager__list_tasks",
+      "mcp__notionApi__API-patch-block-children"
     ]
   },
   "hooks": {

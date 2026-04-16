@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "notionApi": {
+      "command": "/Users/seongohshin/.nvm/versions/node/v20.20.1/bin/notion-mcp-server",
+      "args": [],
+      "env": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer ${NOTION_API_TOKEN}\", \"Notion-Version\": \"2022-06-28\"}"
+      }
+    },
     "shrimp-task-manager": {
       "command": "node",
       "args": ["/Users/seongohshin/Documents/mcp-shrimp-task-manager/dist/index.js"],
