@@ -126,7 +126,6 @@ export default function UsagePanel({
   const weeklyAllModelsReset = usage?.weeklyAllModelsResetLabel
     ? `${usage.weeklyAllModelsResetLabel} 초기화`
     : "주간 리셋 정보 없음";
-  const weeklySonnetPct = usage?.weeklySonnetPercent ?? 0;
 
   useEffect(() => {
     setLastUpdated("방금 전");
@@ -167,19 +166,6 @@ export default function UsagePanel({
             {usage?.planName ?? "Pro"}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => void onRefreshUsage()}
-          disabled={usageLoading}
-          className="text-[11px] font-bold px-3 py-1 rounded-full transition-all disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
-          style={{
-            backgroundColor: "#f5ebe0",
-            color: "#9a7060",
-            border: "1px solid #ecdccc",
-          }}
-        >
-          {usageLoading ? "로딩 중…" : "🔄 새로고침"}
-        </button>
       </div>
 
       <div className="space-y-4">
@@ -210,14 +196,6 @@ export default function UsagePanel({
           subLabel={weeklyAllModelsReset}
           usedPct={weeklyAllModelsPct}
           rightLabel={`${Math.round(weeklyAllModelsPct)}% 사용`}
-        />
-
-        <LimitRow
-          icon="🧠"
-          label="Sonnet 전용"
-          subLabel="7일 Sonnet 사용률"
-          usedPct={weeklySonnetPct}
-          rightLabel={`${Math.round(weeklySonnetPct)}% 사용`}
         />
 
         {usageError ? (
@@ -251,20 +229,30 @@ export default function UsagePanel({
         className="flex items-center gap-1.5 mt-4 pt-3"
         style={{ borderTop: "1px solid #ecdccc" }}
       >
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#c0a090"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <button
+          type="button"
+          onClick={() => void onRefreshUsage()}
+          disabled={usageLoading}
+          className="flex items-center justify-center rounded-full transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          title="새로고침"
         >
-          <path d="M23 4v6h-6" />
-          <path d="M1 20v-6h6" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-        </svg>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#c0a090"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ display: "block" }}
+          >
+            <path d="M23 4v6h-6" />
+            <path d="M1 20v-6h6" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </button>
         <span className="text-[10px] font-semibold" style={{ color: "#c0a090" }}>
           마지막 업데이트: {lastUpdated}
         </span>

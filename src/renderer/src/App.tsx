@@ -6,14 +6,9 @@ import { useLogStore } from "./store/useLogStore";
 import { useUsageEstimator } from "./hooks/useUsageEstimator";
 import type { OAuthUsageData, SessionData } from "../../preload/index.d";
 
-type HeatmapTab = "1Y" | "THIS_MONTH";
-
-/** 1년 히트맵 시작일(해당 연도 1월 1일) */
-const USAGE_HEATMAP_YEAR_START = "2026-01-01";
-
-function usageHeatmapYear(): number {
-  return parseInt(USAGE_HEATMAP_YEAR_START.slice(0, 4), 10);
-}
+/** 히트맵 고정 구간: 2026-01-01 ~ 2026-06-30 */
+const HEATMAP_START = new Date("2026-01-01T00:00:00");
+const HEATMAP_END = new Date(2026, 6, 0); // Jun 30
 
 const formatTokensShort = (n: number): string => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -31,7 +26,6 @@ function formatLocalYmd(d: Date): string {
 
 export default function App(): React.JSX.Element {
   const { days: allDays, loading, init } = useLogStore();
-  const [heatmapTab, setHeatmapTab] = useState<HeatmapTab>("1Y");
   const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
   const [recentFiveHourTokens, setRecentFiveHourTokens] = useState(0);
   const [oldestRecentEntryTime, setOldestRecentEntryTime] = useState<number | null>(null);
@@ -99,29 +93,13 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
-  // 히트맵: 1년(1/1~연말·이번 달 말 중 이른 날) 또는 이번 달 1일~말일
+  // 히트맵: 2026-01-01 ~ 2026-06-30 고정
   const heatmapData = useMemo<DayData[]>(() => {
     if (allDays.length === 0) return [];
-
-    let start: Date;
-    let end: Date;
-
-    if (heatmapTab === "1Y") {
-      start = new Date(`${USAGE_HEATMAP_YEAR_START}T00:00:00`);
-      const y = usageHeatmapYear();
-      // 1Y 탭은 1월 1일 ~ 6월 30일 구간으로 고정
-      end = new Date(y, 6, 0);
-    } else {
-      start = new Date(today + "T00:00:00");
-      start.setDate(1);
-      end = new Date(today + "T00:00:00");
-      end.setMonth(end.getMonth() + 1, 0);
-    }
-
     const dataMap = new Map(allDays.map((d) => [d.date, d]));
     const result: DayData[] = [];
-    const cur = new Date(start);
-    while (cur <= end) {
+    const cur = new Date(HEATMAP_START);
+    while (cur <= HEATMAP_END) {
       const ds = formatLocalYmd(cur);
       result.push(
         dataMap.get(ds) ?? {
@@ -136,7 +114,7 @@ export default function App(): React.JSX.Element {
       cur.setDate(cur.getDate() + 1);
     }
     return result;
-  }, [allDays, heatmapTab, today]);
+  }, [allDays]);
 
   // Stats data: only past + today (no future empty days)
   const filteredData = useMemo<DayData[]>(
@@ -169,14 +147,16 @@ export default function App(): React.JSX.Element {
   }, [allDays, today]);
   const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days]);
 
-  const hy = usageHeatmapYear();
-  const heatmapPeriodLabel =
-    heatmapTab === "1Y"
-      ? `${hy}년 1월부터`
-      : new Date(today + "T00:00:00").toLocaleDateString("ko-KR", {
-          year: "numeric",
-          month: "long",
-        });
+  const thisWeekTokens = useMemo(() => {
+    const map = new Map(allDays.map((d) => [d.date, d]));
+    let sum = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today + "T00:00:00");
+      d.setDate(d.getDate() - i);
+      sum += map.get(formatLocalYmd(d))?.tokens ?? 0;
+    }
+    return sum;
+  }, [allDays, today]);
 
   return (
     <div
@@ -274,34 +254,23 @@ export default function App(): React.JSX.Element {
               Claude Code 세션의 일별 토큰 소비량을 추적합니다
             </p>
           </div>
-          {/* 히트맵 기간: 1년 / 이번 달 */}
           <div
-            className="flex gap-1 p-1 rounded-2xl"
+            className="flex gap-3 px-3 py-2 rounded-2xl text-xs"
             style={{ backgroundColor: "#f5ebe0", border: "1px solid #ecdccc" }}
           >
-            {(
-              [
-                { id: "1Y" as const, label: "1년" },
-                { id: "THIS_MONTH" as const, label: "이번 달" },
-              ] as const
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setHeatmapTab(id)}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
-                style={
-                  heatmapTab === id
-                    ? {
-                        backgroundColor: "#fffcf8",
-                        color: "#d9622a",
-                        boxShadow: "0 1px 6px rgba(180, 100, 50, 0.12)",
-                      }
-                    : { color: "#b89680" }
-                }
-              >
-                {label}
-              </button>
-            ))}
+            <div className="text-right">
+              <div className="font-semibold" style={{ color: "#9a7060" }}>이번 달</div>
+              <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
+                {formatTokensShort(totalThisMonth)}
+              </div>
+            </div>
+            <div style={{ borderLeft: "1px solid #ecdccc" }} />
+            <div className="text-right">
+              <div className="font-semibold" style={{ color: "#9a7060" }}>최근 7일</div>
+              <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
+                {formatTokensShort(thisWeekTokens)}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -342,7 +311,7 @@ export default function App(): React.JSX.Element {
                     🗓 활동 히트맵
                   </h2>
                   <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
-                    {heatmapPeriodLabel} 토큰 사용 기록
+                    2026년 1월 ~ 6월 토큰 사용 기록
                   </p>
                 </div>
                 <div
@@ -366,7 +335,7 @@ export default function App(): React.JSX.Element {
               <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
                 📊 요약 통계
               </h2>
-              <StatsPanel data={filteredData} />
+              <StatsPanel data={filteredData} allDays={allDays} />
             </div>
 
             {/* Recent activity */}
@@ -453,12 +422,7 @@ export default function App(): React.JSX.Element {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="px-4 py-3 mt-2" style={{ borderTop: "1px solid #ecdccc" }}>
-        <p className="text-[10px] font-semibold text-center" style={{ color: "#c0a090" }}>
-          Claude Log · 데이터는 로컬에 저장됩니다 · ~/.claude/projects/**/*.jsonl
-        </p>
-      </footer>
+
     </div>
   );
 }

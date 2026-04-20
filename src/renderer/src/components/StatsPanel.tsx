@@ -7,7 +7,13 @@ function formatTokens(n: number): string {
   return n.toString()
 }
 
-/** claude-opus-4-6-20260114 → Opus 4.6 */
+function formatLocalYmd(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function shortModelName(model: string): string {
   if (model.includes('opus')) return `Opus ${extractVersion(model)}`
   if (model.includes('sonnet')) return `Sonnet ${extractVersion(model)}`
@@ -39,17 +45,32 @@ interface StatCardProps {
   sub?: string
   color?: string
   icon: string
+  badge?: { text: string; positive: boolean } | null
 }
 
-function StatCard({ label, value, sub, color = '#c2410c', icon }: StatCardProps) {
+function StatCard({ label, value, sub, color = '#c2410c', icon, badge }: StatCardProps) {
   return (
     <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="text-lg">{icon}</span>
         <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
       </div>
-      <div className="font-mono font-bold text-2xl" style={{ color }}>
-        {value}
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <div className="font-mono font-bold text-2xl" style={{ color }}>
+          {value}
+        </div>
+        {badge && (
+          <span
+            className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{
+              backgroundColor: badge.positive ? '#f0faf2' : '#fff0f0',
+              color: badge.positive ? '#2f8f57' : '#c53030',
+              border: `1px solid ${badge.positive ? '#bfe7cd' : '#f5b3bb'}`,
+            }}
+          >
+            {badge.positive ? '▲' : '▼'} {badge.text}
+          </span>
+        )}
       </div>
       {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
     </div>
@@ -58,14 +79,17 @@ function StatCard({ label, value, sub, color = '#c2410c', icon }: StatCardProps)
 
 interface Props {
   data: DayData[]
+  allDays?: DayData[]
 }
 
-export default function StatsPanel({ data }: Props) {
+export default function StatsPanel({ data, allDays = [] }: Props) {
   const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
-  const totalInput = data.reduce((s, d) => s + d.inputTokens, 0)
-  const totalOutput = data.reduce((s, d) => s + d.outputTokens, 0)
   const activeDays = data.filter((d) => d.tokens > 0).length
-  const totalSessions = data.reduce((s, d) => s + d.sessions, 0)
+
+  const todayStr = formatLocalYmd(new Date())
+  const todayData = data.find((d) => d.date === todayStr)
+  const todaySessions = todayData?.sessions ?? 0
+  const todayTokens = todayData?.tokens ?? 0
 
   const peak = data.reduce(
     (best, d) => (d.tokens > (best?.tokens ?? 0) ? d : best),
@@ -75,7 +99,7 @@ export default function StatsPanel({ data }: Props) {
     ? new Date(peak.date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
     : '-'
 
-  // Streak — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
+  // 현재 스트릭 — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
   let streak = 0
   const lastIdx = data.length - 1
   const startIdx = lastIdx >= 0 && data[lastIdx].tokens === 0 ? lastIdx - 1 : lastIdx
@@ -84,7 +108,37 @@ export default function StatsPanel({ data }: Props) {
     else break
   }
 
-  // Aggregate model breakdown across all days in the selected period
+  // 역대 최장 스트릭
+  const longestStreak = useMemo(() => {
+    let max = 0
+    let temp = 0
+    for (const d of data) {
+      if (d.tokens > 0) { temp++; max = Math.max(max, temp) }
+      else temp = 0
+    }
+    return max
+  }, [data])
+
+  // 주간 증감률: 이번 주 7일 vs 지난 주 7일 (allDays 기준으로 탭 전환과 무관하게 일관)
+  const weekGrowth = useMemo(() => {
+    if (allDays.length === 0) return null
+    const todayStr = formatLocalYmd(new Date())
+    const map = new Map(allDays.map((d) => [d.date, d]))
+    let thisWeek = 0
+    let lastWeek = 0
+    for (let i = 0; i < 7; i++) {
+      const d1 = new Date(todayStr + 'T00:00:00')
+      d1.setDate(d1.getDate() - i)
+      thisWeek += map.get(formatLocalYmd(d1))?.tokens ?? 0
+      const d2 = new Date(todayStr + 'T00:00:00')
+      d2.setDate(d2.getDate() - 7 - i)
+      lastWeek += map.get(formatLocalYmd(d2))?.tokens ?? 0
+    }
+    if (lastWeek === 0) return null
+    return Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
+  }, [allDays])
+
+  // 모델별 합산
   const modelTotals = useMemo(() => {
     const map = new Map<string, number>()
     for (const day of data) {
@@ -101,27 +155,32 @@ export default function StatsPanel({ data }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* 4-card row */}
+      {/* 4-card grid */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           icon="🔥"
           label="연속 사용일"
           value={`${streak}일`}
-          sub="현재 스트릭"
+          sub={longestStreak > streak ? `역대 최고 ${longestStreak}일` : '현재가 최고 기록!'}
           color="#c2410c"
         />
         <StatCard
           icon="📊"
-          label="총 토큰"
+          label="올해 누적"
           value={formatTokens(totalTokens)}
           sub={`활성일 ${activeDays}일`}
           color="#c2410c"
+          badge={
+            weekGrowth !== null
+              ? { text: `${Math.abs(weekGrowth)}% 전주 대비`, positive: weekGrowth >= 0 }
+              : null
+          }
         />
         <StatCard
           icon="💬"
-          label="총 세션"
-          value={totalSessions.toLocaleString()}
-          sub={`일평균 ${(totalSessions / Math.max(activeDays, 1)).toFixed(1)}회`}
+          label="오늘 세션"
+          value={`${todaySessions}회`}
+          sub={todayTokens > 0 ? `오늘 ${formatTokens(todayTokens)} 사용` : '오늘 사용 없음'}
           color="#6d28d9"
         />
         <StatCard
@@ -131,38 +190,6 @@ export default function StatsPanel({ data }: Props) {
           sub={topModel ? formatTokens(topModel.tokens) : '데이터 없음'}
           color={topModel ? modelColor(topModel.model) : '#94a3b8'}
         />
-      </div>
-
-      {/* 입출력 비율 */}
-      <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">⚡</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">입출력 비율</span>
-        </div>
-        <div className="flex gap-3 items-end mb-2">
-          <div>
-            <div className="text-xs text-[#6b5344] mb-0.5">입력 토큰</div>
-            <div className="font-mono font-bold text-xl text-sky-700">{formatTokens(totalInput)}</div>
-          </div>
-          <div className="text-[#8c6248] mb-1 text-lg font-light">/</div>
-          <div>
-            <div className="text-xs text-[#6b5344] mb-0.5">출력 토큰</div>
-            <div className="font-mono font-bold text-xl text-[#c2410c]">{formatTokens(totalOutput)}</div>
-          </div>
-        </div>
-        <div className="h-2 rounded-full overflow-hidden bg-[#f0e4d8]">
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${(totalInput / Math.max(totalTokens, 1)) * 100}%`,
-              background: 'linear-gradient(to right, #0284c7, #ea580c)',
-            }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-[#6b5344] mt-1">
-          <span>입력 {((totalInput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
-          <span>출력 {((totalOutput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
-        </div>
       </div>
 
       {/* 모델별 사용량 */}
@@ -198,7 +225,6 @@ export default function StatsPanel({ data }: Props) {
             })}
           </div>
 
-          {/* 최고 사용일 */}
           {peak && (
             <div className="mt-3 pt-3 border-t border-[#ecdccc] flex justify-between items-center">
               <div className="text-xs text-[#6b5344]">
