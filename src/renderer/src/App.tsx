@@ -251,7 +251,7 @@ export default function App(): React.JSX.Element {
               토큰 사용량 ✨
             </h1>
             <p className="text-xs font-medium" style={{ color: "#9a7060" }}>
-              Claude Code 세션의 일별 토큰 소비량을 추적합니다
+              Claude Code 세션의 토큰 소비량을 추적합니다.
             </p>
           </div>
           <div
@@ -259,14 +259,18 @@ export default function App(): React.JSX.Element {
             style={{ backgroundColor: "#f5ebe0", border: "1px solid #ecdccc" }}
           >
             <div className="text-right">
-              <div className="font-semibold" style={{ color: "#9a7060" }}>이번 달</div>
+              <div className="font-semibold" style={{ color: "#9a7060" }}>
+                이번 달
+              </div>
               <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
                 {formatTokensShort(totalThisMonth)}
               </div>
             </div>
             <div style={{ borderLeft: "1px solid #ecdccc" }} />
             <div className="text-right">
-              <div className="font-semibold" style={{ color: "#9a7060" }}>최근 7일</div>
+              <div className="font-semibold" style={{ color: "#9a7060" }}>
+                최근 7일
+              </div>
               <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
                 {formatTokensShort(thisWeekTokens)}
               </div>
@@ -421,8 +425,6 @@ export default function App(): React.JSX.Element {
           </>
         )}
       </main>
-
-
     </div>
   );
 }
