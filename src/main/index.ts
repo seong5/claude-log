@@ -180,7 +180,10 @@ function readEnvFromFile(key: string): string | null {
         if (eq < 0) continue;
         const k = trimmed.slice(0, eq).trim();
         if (k !== key) continue;
-        const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+        const value = trimmed
+          .slice(eq + 1)
+          .trim()
+          .replace(/^['"]|['"]$/g, "");
         return value || null;
       }
     } catch {
@@ -201,8 +204,7 @@ function getAdminApiKey(): string | null {
 
 function getOAuthAccessToken(): string | null {
   const envToken =
-    process.env["ANTHROPIC_OAUTH_ACCESS_TOKEN"] ??
-    readEnvFromFile("ANTHROPIC_OAUTH_ACCESS_TOKEN");
+    process.env["ANTHROPIC_OAUTH_ACCESS_TOKEN"] ?? readEnvFromFile("ANTHROPIC_OAUTH_ACCESS_TOKEN");
   if (envToken) return envToken;
 
   const credentialPath = join(homedir(), ".claude", ".credentials.json");
@@ -238,52 +240,54 @@ async function fetchOAuthUsage(): Promise<OAuthUsageResult> {
   if (oauthUsageInFlight) return oauthUsageInFlight;
 
   oauthUsageInFlight = (async () => {
-  const now = Date.now();
-  if (lastOAuthUsageResult && now - lastOAuthUsageFetchAt < OAUTH_USAGE_MIN_INTERVAL_MS) {
-    return lastOAuthUsageResult;
-  }
+    const now = Date.now();
+    if (lastOAuthUsageResult && now - lastOAuthUsageFetchAt < OAUTH_USAGE_MIN_INTERVAL_MS) {
+      return lastOAuthUsageResult;
+    }
 
-  const accessToken = getOAuthAccessToken();
-  if (!accessToken) {
-    throw new Error("OAuth 토큰을 찾을 수 없습니다. claude login 후 다시 시도하세요.");
-  }
+    const accessToken = getOAuthAccessToken();
+    if (!accessToken) {
+      throw new Error("OAuth 토큰을 찾을 수 없습니다. claude login 후 다시 시도하세요.");
+    }
 
-  const response = await fetch("https://api.anthropic.com/api/oauth/usage", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "anthropic-beta": "oauth-2025-04-20",
-      Accept: "application/json",
-    },
-  });
+    const response = await fetch("https://api.anthropic.com/api/oauth/usage", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "anthropic-beta": "oauth-2025-04-20",
+        Accept: "application/json",
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`OAuth usage API 오류 (${response.status})`);
-  }
+    if (!response.ok) {
+      throw new Error(`OAuth usage API 오류 (${response.status})`);
+    }
 
-  const payload = (await response.json()) as OAuthUsageResponse;
-  const resetsAt = payload.five_hour?.resets_at ? new Date(payload.five_hour.resets_at).getTime() : Date.now();
-  const sessionResetSeconds = Math.max(0, Math.floor((resetsAt - Date.now()) / 1000));
-  const weeklyResetLabel = payload.seven_day?.resets_at
-    ? new Date(payload.seven_day.resets_at).toLocaleString("ko-KR", {
-        weekday: "short",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      })
-    : "";
+    const payload = (await response.json()) as OAuthUsageResponse;
+    const resetsAt = payload.five_hour?.resets_at
+      ? new Date(payload.five_hour.resets_at).getTime()
+      : Date.now();
+    const sessionResetSeconds = Math.max(0, Math.floor((resetsAt - Date.now()) / 1000));
+    const weeklyResetLabel = payload.seven_day?.resets_at
+      ? new Date(payload.seven_day.resets_at).toLocaleString("ko-KR", {
+          weekday: "short",
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+      : "";
 
-  const result: OAuthUsageResult = {
-    sessionUsagePercent: payload.five_hour?.utilization ?? 0,
-    sessionResetSeconds,
-    weeklyAllModelsPercent: payload.seven_day?.utilization ?? 0,
-    weeklyAllModelsResetLabel: weeklyResetLabel,
-    weeklySonnetPercent: payload.seven_day_sonnet?.utilization ?? 0,
-    planName: payload.extra_usage?.is_enabled ? "Max (Extra)" : "Pro",
-  };
-  lastOAuthUsageFetchAt = now;
-  lastOAuthUsageResult = result;
-  return result;
+    const result: OAuthUsageResult = {
+      sessionUsagePercent: payload.five_hour?.utilization ?? 0,
+      sessionResetSeconds,
+      weeklyAllModelsPercent: payload.seven_day?.utilization ?? 0,
+      weeklyAllModelsResetLabel: weeklyResetLabel,
+      weeklySonnetPercent: payload.seven_day_sonnet?.utilization ?? 0,
+      planName: payload.extra_usage?.is_enabled ? "Max (Extra)" : "Pro",
+    };
+    lastOAuthUsageFetchAt = now;
+    lastOAuthUsageResult = result;
+    return result;
   })();
 
   try {
@@ -296,7 +300,9 @@ async function fetchOAuthUsage(): Promise<OAuthUsageResult> {
 async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
   const key = getAdminApiKey();
   if (!key) {
-    throw new Error("관리자 API 키를 찾을 수 없습니다. .env에 ANTHROPIC_ADMIN_API_KEY를 설정하세요.");
+    throw new Error(
+      "관리자 API 키를 찾을 수 없습니다. .env에 ANTHROPIC_ADMIN_API_KEY를 설정하세요.",
+    );
   }
 
   const ending = new Date();
@@ -311,13 +317,16 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
     limit: "7",
   });
 
-  const response = await fetch(`https://api.anthropic.com/v1/organizations/usage_report/messages?${params.toString()}`, {
-    method: "GET",
-    headers: {
-      "anthropic-version": "2023-06-01",
-      "x-api-key": key,
+  const response = await fetch(
+    `https://api.anthropic.com/v1/organizations/usage_report/messages?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        "anthropic-version": "2023-06-01",
+        "x-api-key": key,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     const body = await response.text();
@@ -387,7 +396,8 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
     startingAt: starting.toISOString(),
     endingAt: ending.toISOString(),
     buckets: buckets.length,
-    totalTokens: uncachedInputTokens + outputTokens + cacheReadInputTokens + cacheCreationInputTokens,
+    totalTokens:
+      uncachedInputTokens + outputTokens + cacheReadInputTokens + cacheCreationInputTokens,
     uncachedInputTokens,
     outputTokens,
     cacheReadInputTokens,
@@ -411,8 +421,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle("claude-log:get-days", () => logService.getDays());
   ipcMain.handle("claude-log:get-current-session", () => logService.getCurrentSession());
-  ipcMain.handle("claude-log:get-recent-five-hour-tokens", () => logService.getRecentFiveHourTokens());
-  ipcMain.handle("claude-log:get-oldest-recent-entry-time", () => logService.getOldestRecentEntryTime());
+  ipcMain.handle("claude-log:get-recent-five-hour-tokens", () =>
+    logService.getRecentFiveHourTokens(),
+  );
+  ipcMain.handle("claude-log:get-oldest-recent-entry-time", () =>
+    logService.getOldestRecentEntryTime(),
+  );
   ipcMain.handle("claude-log:get-admin-week-usage", async () => fetchAdminWeekUsage());
   ipcMain.handle("claude-log:get-oauth-usage", async () => {
     const now = Date.now();
@@ -432,9 +446,12 @@ app.whenReady().then(() => {
 
   createTray();
   void refreshTrayUsageTitle();
-  trayUsageTimer = setInterval(() => {
-    void refreshTrayUsageTitle();
-  }, 5 * 60 * 1000);
+  trayUsageTimer = setInterval(
+    () => {
+      void refreshTrayUsageTitle();
+    },
+    5 * 60 * 1000,
+  );
   popupWindow = createPopupWindow();
 });
 
