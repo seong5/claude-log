@@ -8,6 +8,7 @@ import { useUsageEstimator } from "./hooks/useUsageEstimator";
 import { useHeatmapData } from "./hooks/useHeatmapData";
 import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
 import type { OAuthUsageData } from "../../preload/index.d";
+import mainLogo from "../../../build/main-logo.png";
 
 export default function App(): React.JSX.Element {
   const {
@@ -100,20 +101,21 @@ export default function App(): React.JSX.Element {
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center mascot-float overflow-hidden"
+            className="w-15 h-15 rounded-xl flex items-center justify-center overflow-hidden"
             style={{ boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)" }}
           >
             <img
-              src="../../resources/icon.png"
+              src={mainLogo}
               alt="Claude Log"
-              className="w-full h-full object-cover"
+              className="block w-[100%] h-[100%] object-cover"
               onError={(e) => {
                 const target = e.currentTarget as HTMLImageElement;
                 target.style.display = "none";
                 const parent = target.parentElement;
                 if (parent) {
                   parent.style.background = "linear-gradient(135deg, #f4a055, #d9622a)";
-                  parent.innerHTML = '<span style="font-size:16px">🐙</span>';
+                  parent.innerHTML =
+                    '<span style="font-size:14px; font-weight:700; color:#fff">CL</span>';
                 }
               }}
             />
@@ -167,7 +169,7 @@ export default function App(): React.JSX.Element {
               className="text-xl font-extrabold mb-0.5"
               style={{ color: "#3a2010", letterSpacing: "-0.02em" }}
             >
-              토큰 사용량 ✨
+              CLAUDE-LOG ✨
             </h1>
             <p className="text-xs font-medium" style={{ color: "#9a7060" }}>
               Claude Code 세션의 토큰 소비량을 추적합니다.
