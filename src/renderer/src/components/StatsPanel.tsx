@@ -71,30 +71,38 @@ interface Props {
 }
 
 export default function StatsPanel({ data, allDays = [] }: Props) {
-  const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
-  const activeDays = data.filter((d) => d.tokens > 0).length
+  const { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak } =
+    useMemo(() => {
+      const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
+      const activeDays = data.filter((d) => d.tokens > 0).length
 
-  const todayStr = formatLocalYmd(new Date())
-  const todayData = data.find((d) => d.date === todayStr)
-  const todaySessions = todayData?.sessions ?? 0
-  const todayTokens = todayData?.tokens ?? 0
+      const todayStr = formatLocalYmd(new Date())
+      const todayData = data.find((d) => d.date === todayStr)
+      const todaySessions = todayData?.sessions ?? 0
+      const todayTokens = todayData?.tokens ?? 0
 
-  const peak = data.reduce(
-    (best, d) => (d.tokens > (best?.tokens ?? 0) ? d : best),
-    data[0] ?? null
-  )
-  const peakDate = peak
-    ? new Date(peak.date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
-    : '-'
+      const peak = data.reduce(
+        (best, d) => (d.tokens > (best?.tokens ?? 0) ? d : best),
+        data[0] ?? null,
+      )
+      const peakDate = peak
+        ? new Date(peak.date + 'T00:00:00').toLocaleDateString('ko-KR', {
+            month: 'short',
+            day: 'numeric',
+          })
+        : '-'
 
-  // 현재 스트릭 — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
-  let streak = 0
-  const lastIdx = data.length - 1
-  const startIdx = lastIdx >= 0 && data[lastIdx].tokens === 0 ? lastIdx - 1 : lastIdx
-  for (let i = startIdx; i >= 0; i--) {
-    if (data[i].tokens > 0) streak++
-    else break
-  }
+      // 현재 스트릭 — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
+      let streak = 0
+      const lastIdx = data.length - 1
+      const startIdx = lastIdx >= 0 && data[lastIdx].tokens === 0 ? lastIdx - 1 : lastIdx
+      for (let i = startIdx; i >= 0; i--) {
+        if (data[i].tokens > 0) streak++
+        else break
+      }
+
+      return { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak }
+    }, [data])
 
   // 역대 최장 스트릭
   const longestStreak = useMemo(() => {
