@@ -1,18 +1,6 @@
 import { useMemo } from 'react'
-import type { DayData } from './TokenHeatmap'
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return n.toString()
-}
-
-function formatLocalYmd(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+import type { DayData } from '../../../preload/index.d'
+import { formatTokens, formatLocalYmd } from '../lib/formatters'
 
 function shortModelName(model: string): string {
   if (model.includes('opus')) return `Opus ${extractVersion(model)}`

@@ -1,43 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import TokenHeatmap, { type DayData } from "./components/TokenHeatmap";
+import { useCallback, useEffect, useState } from "react";
+import TokenHeatmap from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
 import UsagePanel from "./components/UsagePanel";
+import RecentActivity from "./components/RecentActivity";
 import { useLogStore } from "./store/useLogStore";
 import { useUsageEstimator } from "./hooks/useUsageEstimator";
-import type { OAuthUsageData, SessionData } from "../../preload/index.d";
-
-/** 히트맵 고정 구간: 2026-01-01 ~ 2026-06-30 */
-const HEATMAP_START = new Date("2026-01-01T00:00:00");
-const HEATMAP_END = new Date(2026, 6, 0); // Jun 30
-
-const formatTokensShort = (n: number): string => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
-};
-
-/** 로컬 달력 기준 YYYY-MM-DD (toISOString UTC 시프트로 12월/1월 레이블이 겹치는 문제 방지) */
-function formatLocalYmd(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { useHeatmapData } from "./hooks/useHeatmapData";
+import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
+import type { OAuthUsageData } from "../../preload/index.d";
 
 export default function App(): React.JSX.Element {
-  const { days: allDays, loading, init } = useLogStore();
-  const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
-  const [recentFiveHourTokens, setRecentFiveHourTokens] = useState(0);
-  const [oldestRecentEntryTime, setOldestRecentEntryTime] = useState<number | null>(null);
+  const {
+    days: allDays,
+    loading,
+    init,
+    currentSession,
+    recentFiveHourTokens,
+    oldestRecentEntryTime,
+  } = useLogStore();
+
   const [oauthUsage, setOAuthUsage] = useState<OAuthUsageData | null>(null);
   const [oauthUsageLoading, setOAuthUsageLoading] = useState(false);
   const [oauthUsageError, setOAuthUsageError] = useState<string | null>(null);
-  const sessionTokens = currentSession?.tokens ?? 0;
-  const currentBlockTokens = currentSession?.blockTokens ?? 0;
+
   const blockStartedAt = currentSession?.blockStartTimestamp
     ? Date.parse(currentSession.blockStartTimestamp)
     : Date.now();
-  // 슬라이딩 윈도우 기반 리셋 시간: 가장 오래된 항목 + 5시간
   const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
   const blockEndsAt = oldestRecentEntryTime
     ? oldestRecentEntryTime + FIVE_HOUR_MS
@@ -47,34 +35,27 @@ export default function App(): React.JSX.Element {
     if (recentFiveHourTokens <= 0) return;
     usageEstimator.setManualLimit(recentFiveHourTokens);
   };
+  void handleCaptureLimit;
 
-  const fetchOAuthUsage = useCallback((): Promise<void> => {
+  const fetchOAuthUsage = useCallback(async (): Promise<void> => {
     setOAuthUsageLoading(true);
     setOAuthUsageError(null);
-    return window.claudeLog
-      .getOAuthUsage()
-      .then((data) => setOAuthUsage(data))
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : "OAuth usage 조회에 실패했습니다.";
-        setOAuthUsageError(message);
-      })
-      .finally(() => setOAuthUsageLoading(false));
+    try {
+      const data = await window.claudeLog.getOAuthUsage();
+      setOAuthUsage(data);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "OAuth usage 조회에 실패했습니다.";
+      setOAuthUsageError(message);
+    } finally {
+      setOAuthUsageLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     init();
-    window.claudeLog.getCurrentSession().then(setCurrentSession);
-    window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
-    window.claudeLog.getOldestRecentEntryTime().then(setOldestRecentEntryTime);
     void fetchOAuthUsage();
-    const unsub = window.claudeLog.onUpdate(() => {
-      window.claudeLog.getCurrentSession().then(setCurrentSession);
-      window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
-      window.claudeLog.getOldestRecentEntryTime().then(setOldestRecentEntryTime);
-    });
     return () => {
       useLogStore.getState().destroy();
-      unsub();
     };
   }, [fetchOAuthUsage, init]);
 
@@ -93,70 +74,8 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
-  // 히트맵: 2026-01-01 ~ 2026-06-30 고정
-  const heatmapData = useMemo<DayData[]>(() => {
-    if (allDays.length === 0) return [];
-    const dataMap = new Map(allDays.map((d) => [d.date, d]));
-    const result: DayData[] = [];
-    const cur = new Date(HEATMAP_START);
-    while (cur <= HEATMAP_END) {
-      const ds = formatLocalYmd(cur);
-      result.push(
-        dataMap.get(ds) ?? {
-          date: ds,
-          tokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          sessions: 0,
-          modelBreakdown: {},
-        },
-      );
-      cur.setDate(cur.getDate() + 1);
-    }
-    return result;
-  }, [allDays]);
-
-  // Stats data: only past + today (no future empty days)
-  const filteredData = useMemo<DayData[]>(
-    () => heatmapData.filter((d) => d.date <= today),
-    [heatmapData, today],
-  );
-
-  const totalThisMonth = useMemo(() => {
-    const ym = today.slice(0, 7);
-    return allDays.filter((d) => d.date.startsWith(ym)).reduce((s, d) => s + d.tokens, 0);
-  }, [allDays, today]);
-
-  const last7Days = useMemo(() => {
-    const dataMap = new Map(allDays.map((d) => [d.date, d]));
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today + "T00:00:00");
-      d.setDate(d.getDate() - i);
-      const ds = formatLocalYmd(d);
-      return (
-        dataMap.get(ds) ?? {
-          date: ds,
-          tokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          sessions: 0,
-          modelBreakdown: {},
-        }
-      );
-    });
-  }, [allDays, today]);
-  const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days]);
-
-  const thisWeekTokens = useMemo(() => {
-    const map = new Map(allDays.map((d) => [d.date, d]));
-    let sum = 0;
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today + "T00:00:00");
-      d.setDate(d.getDate() - i);
-      sum += map.get(formatLocalYmd(d))?.tokens ?? 0;
-    }
-    return sum;
-  }, [allDays, today]);
+  const { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens } =
+    useHeatmapData(allDays, today);
 
   return (
     <div
@@ -343,85 +262,7 @@ export default function App(): React.JSX.Element {
             </div>
 
             {/* Recent activity */}
-            <div
-              className="rounded-2xl p-4"
-              style={{
-                backgroundColor: "#fffcf8",
-                border: "1px solid #ecdccc",
-                boxShadow: "0 2px 16px rgba(180, 100, 50, 0.07)",
-              }}
-            >
-              <h2 className="font-extrabold text-sm mb-3" style={{ color: "#3a2010" }}>
-                📅 최근 7일 활동
-              </h2>
-              <div className="space-y-2.5">
-                {last7Days.map((day) => {
-                  const date = new Date(day.date + "T00:00:00");
-                  const isToday = day.date === today;
-                  const pct = (day.tokens / maxLast7) * 100;
-                  return (
-                    <div key={day.date} className="flex items-center gap-3">
-                      <div
-                        className="text-xs font-bold w-24 shrink-0 flex items-center gap-1.5"
-                        style={{ color: "#9a7060" }}
-                      >
-                        {isToday ? (
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                            style={{
-                              backgroundColor: "#fde8d5",
-                              color: "#d9622a",
-                              border: "1px solid #f4c4a0",
-                            }}
-                          >
-                            오늘
-                          </span>
-                        ) : (
-                          date.toLocaleDateString("ko-KR", {
-                            month: "short",
-                            day: "numeric",
-                            weekday: "short",
-                          })
-                        )}
-                      </div>
-                      <div
-                        className="flex-1 h-6 rounded-full overflow-hidden"
-                        style={{ backgroundColor: "#f5ebe0" }}
-                      >
-                        {day.tokens > 0 && (
-                          <div
-                            className="h-full rounded-full flex items-center px-3 transition-all duration-500"
-                            style={{
-                              width: `${Math.max(pct, 5)}%`,
-                              background: "linear-gradient(to right, #f4a055, #d9622a)",
-                            }}
-                          >
-                            <span
-                              className="text-[10px] font-bold font-mono whitespace-nowrap overflow-hidden"
-                              style={{ color: "#fff8f4" }}
-                            >
-                              {pct > 30 ? formatTokensShort(day.tokens) : ""}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div
-                        className="text-xs font-mono font-bold w-16 text-right shrink-0"
-                        style={{ color: day.tokens > 0 ? "#9a7060" : "#d4b8a4" }}
-                      >
-                        {day.tokens > 0 ? formatTokensShort(day.tokens) : "—"}
-                      </div>
-                      <div
-                        className="text-xs font-semibold w-10 text-right shrink-0"
-                        style={{ color: "#c0a090" }}
-                      >
-                        {day.sessions > 0 ? `${day.sessions}회` : ""}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <RecentActivity days={last7Days} today={today} maxTokens={maxLast7} />
           </>
         )}
       </main>

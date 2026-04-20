@@ -49,21 +49,24 @@ export function useUsageEstimator(usedTokens: number, blockStartedAt: number, bl
   useEffect(() => {
     if (blockStartedAt <= lastLearnedBlockStart) return;
 
-    const nextHistory = [...history, usedTokens].filter((v) => v > 0).slice(-30);
-    const p90 = percentile90(nextHistory);
-    const nextLimit = Math.max(DEFAULT_LIMIT, Math.round(p90 * 1.05));
+    setHistory((prev) => {
+      const nextHistory = [...prev, usedTokens].filter((v) => v > 0).slice(-30);
+      const p90 = percentile90(nextHistory);
+      const nextLimit = Math.max(DEFAULT_LIMIT, Math.round(p90 * 1.05));
 
-    setHistory(nextHistory);
-    setLearnedLimit(nextLimit);
-    setLastLearnedBlockStart(blockStartedAt);
+      setLearnedLimit(nextLimit);
+      setLastLearnedBlockStart(blockStartedAt);
 
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-      localStorage.setItem(LIMIT_KEY, String(nextLimit));
-    } catch {
-      /* ignore */
-    }
-  }, [blockStartedAt, history, lastLearnedBlockStart, usedTokens]);
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+        localStorage.setItem(LIMIT_KEY, String(nextLimit));
+      } catch {
+        /* ignore */
+      }
+
+      return nextHistory;
+    });
+  }, [blockStartedAt, lastLearnedBlockStart, usedTokens]);
 
   const estimatedLimit = manualLimit ?? learnedLimit;
   const usagePct = useMemo(() => {

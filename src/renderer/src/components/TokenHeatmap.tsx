@@ -1,13 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-
-export interface DayData {
-  date: string;
-  tokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  sessions: number;
-  modelBreakdown: Record<string, number>;
-}
+import type { DayData } from "../../../preload/index.d";
+import { formatTokens } from "../lib/formatters";
 
 interface TooltipState {
   visible: boolean;
@@ -35,12 +28,6 @@ function getIntensityLevel(tokens: number, maxTokens: number): number {
   if (ratio < 0.45) return 2;
   if (ratio < 0.75) return 3;
   return 4;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
 }
 
 function formatDate(dateStr: string): string {
