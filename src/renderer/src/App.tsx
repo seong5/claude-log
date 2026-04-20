@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TokenHeatmap, { type DayData } from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
 import UsagePanel from "./components/UsagePanel";
 import { useLogStore } from "./store/useLogStore";
 import { useUsageEstimator } from "./hooks/useUsageEstimator";
-import type { SessionData } from "../../preload/index.d";
+import type { OAuthUsageData, SessionData } from "../../preload/index.d";
 
 type HeatmapTab = "1Y" | "THIS_MONTH";
 
@@ -35,6 +35,9 @@ export default function App(): React.JSX.Element {
   const [currentSession, setCurrentSession] = useState<SessionData | null>(null);
   const [recentFiveHourTokens, setRecentFiveHourTokens] = useState(0);
   const [oldestRecentEntryTime, setOldestRecentEntryTime] = useState<number | null>(null);
+  const [oauthUsage, setOAuthUsage] = useState<OAuthUsageData | null>(null);
+  const [oauthUsageLoading, setOAuthUsageLoading] = useState(false);
+  const [oauthUsageError, setOAuthUsageError] = useState<string | null>(null);
   const sessionTokens = currentSession?.tokens ?? 0;
   const currentBlockTokens = currentSession?.blockTokens ?? 0;
   const blockStartedAt = currentSession?.blockStartTimestamp
@@ -51,11 +54,25 @@ export default function App(): React.JSX.Element {
     usageEstimator.setManualLimit(recentFiveHourTokens);
   };
 
+  const fetchOAuthUsage = useCallback((): Promise<void> => {
+    setOAuthUsageLoading(true);
+    setOAuthUsageError(null);
+    return window.claudeLog
+      .getOAuthUsage()
+      .then((data) => setOAuthUsage(data))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "OAuth usage 조회에 실패했습니다.";
+        setOAuthUsageError(message);
+      })
+      .finally(() => setOAuthUsageLoading(false));
+  }, []);
+
   useEffect(() => {
     init();
     window.claudeLog.getCurrentSession().then(setCurrentSession);
     window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
     window.claudeLog.getOldestRecentEntryTime().then(setOldestRecentEntryTime);
+    void fetchOAuthUsage();
     const unsub = window.claudeLog.onUpdate(() => {
       window.claudeLog.getCurrentSession().then(setCurrentSession);
       window.claudeLog.getRecentFiveHourTokens().then(setRecentFiveHourTokens);
@@ -65,7 +82,7 @@ export default function App(): React.JSX.Element {
       useLogStore.getState().destroy();
       unsub();
     };
-  }, [init]);
+  }, [fetchOAuthUsage, init]);
 
   const [today, setToday] = useState(() => formatLocalYmd(new Date()));
 
@@ -92,10 +109,8 @@ export default function App(): React.JSX.Element {
     if (heatmapTab === "1Y") {
       start = new Date(`${USAGE_HEATMAP_YEAR_START}T00:00:00`);
       const y = usageHeatmapYear();
-      const yearEnd = new Date(y, 12, 0);
-      const endOfThisMonth = new Date(today + "T00:00:00");
-      endOfThisMonth.setMonth(endOfThisMonth.getMonth() + 1, 0);
-      end = yearEnd.getTime() <= endOfThisMonth.getTime() ? yearEnd : endOfThisMonth;
+      // 1Y 탭은 1월 1일 ~ 6월 30일 구간으로 고정
+      end = new Date(y, 6, 0);
     } else {
       start = new Date(today + "T00:00:00");
       start.setDate(1);
@@ -237,9 +252,9 @@ export default function App(): React.JSX.Element {
               color: "#8c6248",
             }}
           >
-            이번 달{" "}
+            현재 세션{" "}
             <span className="font-mono font-bold ml-1" style={{ color: "#d9622a" }}>
-              {formatTokensShort(totalThisMonth)}
+              {Math.round(oauthUsage?.sessionUsagePercent ?? 0)}%
             </span>
           </div>
         </div>
@@ -304,6 +319,14 @@ export default function App(): React.JSX.Element {
           </div>
         ) : (
           <>
+            {/* Usage Panel */}
+            <UsagePanel
+              usage={oauthUsage}
+              usageLoading={oauthUsageLoading}
+              usageError={oauthUsageError}
+              onRefreshUsage={fetchOAuthUsage}
+            />
+
             {/* Heatmap Card */}
             <div
               className="rounded-2xl p-4"
@@ -337,17 +360,6 @@ export default function App(): React.JSX.Element {
               </div>
               <TokenHeatmap data={heatmapData} today={today} />
             </div>
-
-            {/* Usage Panel */}
-            <UsagePanel
-              currentSessionTokens={sessionTokens}
-              currentBlockTokens={currentBlockTokens}
-              recentFiveHourTokens={recentFiveHourTokens}
-              estimatedLimit={usageEstimator.estimatedLimit}
-              usagePct={usageEstimator.usagePct}
-              blockEndsAt={usageEstimator.blockEndsAt}
-              onCaptureLimit={handleCaptureLimit}
-            />
 
             {/* Stats */}
             <div>

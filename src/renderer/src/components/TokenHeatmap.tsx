@@ -137,7 +137,7 @@ export default function TokenHeatmap({ data, today }: Props) {
   return (
     <div className="relative select-none">
       {/* Month labels */}
-      <div className="flex mb-1 ml-8">
+      <div className="flex mb-1 ml-8 overflow-hidden">
         {weeks.map((_, wi) => {
           const found = monthLabels.find((m) => m.weekIndex === wi);
           return (
