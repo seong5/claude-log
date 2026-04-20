@@ -12,6 +12,8 @@ let trayUsageTimer: NodeJS.Timeout | null = null;
 let lastOAuthUsageFetchAt = 0;
 let lastOAuthUsageResult: OAuthUsageResult | null = null;
 const OAUTH_USAGE_MIN_INTERVAL_MS = 5_000;
+const OAUTH_RATE_LIMIT_DEFAULT_BACKOFF_MS = 60_000;
+let oauthRateLimitedUntil = 0;
 let oauthUsageInFlight: Promise<OAuthUsageResult> | null = null;
 const OAUTH_IPC_MIN_INTERVAL_MS = 1_000;
 let lastOAuthIpcAt = 0;
@@ -63,6 +65,15 @@ interface OAuthUsageResult {
   weeklySonnetPercent: number;
   planName: string;
 }
+
+const EMPTY_OAUTH_USAGE_RESULT: OAuthUsageResult = {
+  sessionUsagePercent: 0,
+  sessionResetSeconds: 0,
+  weeklyAllModelsPercent: 0,
+  weeklyAllModelsResetLabel: "",
+  weeklySonnetPercent: 0,
+  planName: "Pro",
+};
 
 function formatPercentShort(n: number): string {
   return `${Math.max(0, Math.min(Math.round(n), 100))}%`;
@@ -241,6 +252,9 @@ async function fetchOAuthUsage(): Promise<OAuthUsageResult> {
 
   oauthUsageInFlight = (async () => {
     const now = Date.now();
+    if (now < oauthRateLimitedUntil) {
+      return lastOAuthUsageResult ?? EMPTY_OAUTH_USAGE_RESULT;
+    }
     if (lastOAuthUsageResult && now - lastOAuthUsageFetchAt < OAUTH_USAGE_MIN_INTERVAL_MS) {
       return lastOAuthUsageResult;
     }
@@ -260,9 +274,20 @@ async function fetchOAuthUsage(): Promise<OAuthUsageResult> {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        const retryAfterRaw = response.headers.get("retry-after");
+        const retryAfterSeconds = retryAfterRaw ? Number.parseInt(retryAfterRaw, 10) : NaN;
+        const backoffMs =
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? retryAfterSeconds * 1000
+            : OAUTH_RATE_LIMIT_DEFAULT_BACKOFF_MS;
+        oauthRateLimitedUntil = Date.now() + backoffMs;
+        return lastOAuthUsageResult ?? EMPTY_OAUTH_USAGE_RESULT;
+      }
       throw new Error(`OAuth usage API 오류 (${response.status})`);
     }
 
+    oauthRateLimitedUntil = 0;
     const payload = (await response.json()) as OAuthUsageResponse;
     const resetsAt = payload.five_hour?.resets_at
       ? new Date(payload.five_hour.resets_at).getTime()
