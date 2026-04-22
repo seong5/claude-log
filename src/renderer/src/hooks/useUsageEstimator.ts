@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_LIMIT = 1_000_000;
 const LIMIT_KEY = "claude-log:usage-estimator-limit";
@@ -45,27 +45,26 @@ export function useUsageEstimator(usedTokens: number, blockStartedAt: number, bl
     return n > 0 ? n : null;
   });
   const [history, setHistory] = useState<number[]>(() => readHistory());
+  const historyRef = useRef(history);
+  historyRef.current = history;
 
   useEffect(() => {
     if (blockStartedAt <= lastLearnedBlockStart) return;
 
-    setHistory((prev) => {
-      const nextHistory = [...prev, usedTokens].filter((v) => v > 0).slice(-30);
-      const p90 = percentile90(nextHistory);
-      const nextLimit = Math.max(DEFAULT_LIMIT, Math.round(p90 * 1.05));
+    const nextHistory = [...historyRef.current, usedTokens].filter((v) => v > 0).slice(-30);
+    const p90 = percentile90(nextHistory);
+    const nextLimit = Math.max(DEFAULT_LIMIT, Math.round(p90 * 1.05));
 
-      setLearnedLimit(nextLimit);
-      setLastLearnedBlockStart(blockStartedAt);
+    setHistory(nextHistory);
+    setLearnedLimit(nextLimit);
+    setLastLearnedBlockStart(blockStartedAt);
 
-      try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
-        localStorage.setItem(LIMIT_KEY, String(nextLimit));
-      } catch {
-        /* ignore */
-      }
-
-      return nextHistory;
-    });
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+      localStorage.setItem(LIMIT_KEY, String(nextLimit));
+    } catch {
+      /* ignore */
+    }
   }, [blockStartedAt, lastLearnedBlockStart, usedTokens]);
 
   const estimatedLimit = manualLimit ?? learnedLimit;

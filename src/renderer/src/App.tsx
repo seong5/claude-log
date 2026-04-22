@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import TokenHeatmap from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
 import UsagePanel from "./components/UsagePanel";
@@ -7,40 +8,24 @@ import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 import { Separator } from "./components/ui/separator";
 import { useLogStore } from "./store/useLogStore";
-import { useUsageEstimator } from "./hooks/useUsageEstimator";
 import { useHeatmapData } from "./hooks/useHeatmapData";
 import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
 import type { OAuthUsageData } from "../../preload/index.d";
 import mainLogo from "../../../build/main-logo.png";
 
 export default function App(): React.JSX.Element {
-  const {
-    days: allDays,
-    loading,
-    init,
-    currentSession,
-    recentFiveHourTokens,
-    oldestRecentEntryTime,
-  } = useLogStore();
+  const init = useLogStore((s) => s.init);
+  const { days: allDays, loading } = useLogStore(
+    useShallow((s) => ({
+      days: s.days,
+      loading: s.loading,
+    })),
+  );
 
   const [oauthUsage, setOAuthUsage] = useState<OAuthUsageData | null>(null);
   const [oauthUsageLoading, setOAuthUsageLoading] = useState(false);
   const [oauthUsageError, setOAuthUsageError] = useState<string | null>(null);
   const isOAuthConnected = Boolean(oauthUsage) && !oauthUsageError;
-
-  const blockStartedAt = currentSession?.blockStartTimestamp
-    ? Date.parse(currentSession.blockStartTimestamp)
-    : Date.now();
-  const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
-  const blockEndsAt = oldestRecentEntryTime
-    ? oldestRecentEntryTime + FIVE_HOUR_MS
-    : Date.now() + FIVE_HOUR_MS;
-  const usageEstimator = useUsageEstimator(recentFiveHourTokens, blockStartedAt, blockEndsAt);
-  const handleCaptureLimit = (): void => {
-    if (recentFiveHourTokens <= 0) return;
-    usageEstimator.setManualLimit(recentFiveHourTokens);
-  };
-  void handleCaptureLimit;
 
   const fetchOAuthUsage = useCallback(async (): Promise<void> => {
     setOAuthUsageLoading(true);
