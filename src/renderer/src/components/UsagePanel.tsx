@@ -32,6 +32,7 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
   const [filled, setFilled] = useState(false);
 
   useEffect(() => {
+    setFilled(false);
     const t = setTimeout(() => setFilled(true), 120);
     return () => clearTimeout(t);
   }, [usedPct]);

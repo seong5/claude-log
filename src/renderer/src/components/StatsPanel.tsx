@@ -67,16 +67,16 @@ function StatCard({ label, value, sub, color = '#c2410c', icon, badge }: StatCar
 interface Props {
   data: DayData[]
   allDays?: DayData[]
+  today: string
 }
 
-export default function StatsPanel({ data, allDays = [] }: Props) {
+export default function StatsPanel({ data, allDays = [], today }: Props) {
   const { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak } =
     useMemo(() => {
       const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
       const activeDays = data.filter((d) => d.tokens > 0).length
 
-      const todayStr = formatLocalYmd(new Date())
-      const todayData = data.find((d) => d.date === todayStr)
+      const todayData = data.find((d) => d.date === today)
       const todaySessions = todayData?.sessions ?? 0
       const todayTokens = todayData?.tokens ?? 0
 
@@ -101,7 +101,7 @@ export default function StatsPanel({ data, allDays = [] }: Props) {
       }
 
       return { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak }
-    }, [data])
+    }, [data, today])
 
   // 역대 최장 스트릭
   const longestStreak = useMemo(() => {
@@ -117,21 +117,20 @@ export default function StatsPanel({ data, allDays = [] }: Props) {
   // 주간 증감률: 이번 주 7일 vs 지난 주 7일 (allDays 기준으로 탭 전환과 무관하게 일관)
   const weekGrowth = useMemo(() => {
     if (allDays.length === 0) return null
-    const todayStr = formatLocalYmd(new Date())
     const map = new Map(allDays.map((d) => [d.date, d]))
     let thisWeek = 0
     let lastWeek = 0
     for (let i = 0; i < 7; i++) {
-      const d1 = new Date(todayStr + 'T00:00:00')
+      const d1 = new Date(today + 'T00:00:00')
       d1.setDate(d1.getDate() - i)
       thisWeek += map.get(formatLocalYmd(d1))?.tokens ?? 0
-      const d2 = new Date(todayStr + 'T00:00:00')
+      const d2 = new Date(today + 'T00:00:00')
       d2.setDate(d2.getDate() - 7 - i)
       lastWeek += map.get(formatLocalYmd(d2))?.tokens ?? 0
     }
     if (lastWeek === 0) return null
     return Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
-  }, [allDays])
+  }, [allDays, today])
 
   // 모델별 합산
   const modelTotals = useMemo(() => {

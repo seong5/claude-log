@@ -17,6 +17,10 @@ function Progress({
   return (
     <div
       data-slot="progress"
+      role="progressbar"
+      aria-valuenow={normalized}
+      aria-valuemin={0}
+      aria-valuemax={100}
       className={cn(
         "relative w-full overflow-hidden rounded-full border border-[#ecdccc] bg-[#f0e4d4]",
         className,

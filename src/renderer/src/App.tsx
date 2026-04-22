@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import TokenHeatmap from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
@@ -9,8 +9,8 @@ import { Card, CardContent } from "./components/ui/card";
 import { Separator } from "./components/ui/separator";
 import { useLogStore } from "./store/useLogStore";
 import { useHeatmapData } from "./hooks/useHeatmapData";
+import { useOAuthUsage } from "./hooks/useOAuthUsage";
 import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
-import type { OAuthUsageData } from "../../preload/index.d";
 import mainLogo from "../../../build/main-logo.png";
 
 export default function App(): React.JSX.Element {
@@ -22,24 +22,8 @@ export default function App(): React.JSX.Element {
     })),
   );
 
-  const [oauthUsage, setOAuthUsage] = useState<OAuthUsageData | null>(null);
-  const [oauthUsageLoading, setOAuthUsageLoading] = useState(false);
-  const [oauthUsageError, setOAuthUsageError] = useState<string | null>(null);
+  const { data: oauthUsage, loading: oauthUsageLoading, error: oauthUsageError, fetch: fetchOAuthUsage } = useOAuthUsage();
   const isOAuthConnected = Boolean(oauthUsage) && !oauthUsageError;
-
-  const fetchOAuthUsage = useCallback(async (): Promise<void> => {
-    setOAuthUsageLoading(true);
-    setOAuthUsageError(null);
-    try {
-      const data = await window.claudeLog.getOAuthUsage();
-      setOAuthUsage(data);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "OAuth usage 조회에 실패했습니다.";
-      setOAuthUsageError(message);
-    } finally {
-      setOAuthUsageLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     init();
@@ -234,7 +218,7 @@ export default function App(): React.JSX.Element {
               <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
                 📊 요약 통계
               </h2>
-              <StatsPanel data={filteredData} allDays={allDays} />
+              <StatsPanel data={filteredData} allDays={allDays} today={today} />
             </div>
 
             {/* Recent activity */}

@@ -50,16 +50,10 @@ export function useHeatmapData(allDays: DayData[], today: string) {
 
   const maxLast7 = useMemo(() => Math.max(...last7Days.map((d) => d.tokens), 1), [last7Days])
 
-  const thisWeekTokens = useMemo(() => {
-    const map = new Map(allDays.map((d) => [d.date, d]))
-    let sum = 0
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today + 'T00:00:00')
-      d.setDate(d.getDate() - i)
-      sum += map.get(formatLocalYmd(d))?.tokens ?? 0
-    }
-    return sum
-  }, [allDays, today])
+  const thisWeekTokens = useMemo(
+    () => last7Days.reduce((sum, d) => sum + d.tokens, 0),
+    [last7Days],
+  )
 
   return { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens }
 }
