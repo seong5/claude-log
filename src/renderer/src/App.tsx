@@ -3,6 +3,9 @@ import TokenHeatmap from "./components/TokenHeatmap";
 import StatsPanel from "./components/StatsPanel";
 import UsagePanel from "./components/UsagePanel";
 import RecentActivity from "./components/RecentActivity";
+import { Badge } from "./components/ui/badge";
+import { Card, CardContent } from "./components/ui/card";
+import { Separator } from "./components/ui/separator";
 import { useLogStore } from "./store/useLogStore";
 import { useUsageEstimator } from "./hooks/useUsageEstimator";
 import { useHeatmapData } from "./hooks/useHeatmapData";
@@ -23,6 +26,7 @@ export default function App(): React.JSX.Element {
   const [oauthUsage, setOAuthUsage] = useState<OAuthUsageData | null>(null);
   const [oauthUsageLoading, setOAuthUsageLoading] = useState(false);
   const [oauthUsageError, setOAuthUsageError] = useState<string | null>(null);
+  const isOAuthConnected = Boolean(oauthUsage) && !oauthUsageError;
 
   const blockStartedAt = currentSession?.blockStartTimestamp
     ? Date.parse(currentSession.blockStartTimestamp)
@@ -126,38 +130,34 @@ export default function App(): React.JSX.Element {
           >
             Claude Log
           </span>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ backgroundColor: "#fde8d5", color: "#d9622a", border: "1px solid #f4c4a0" }}
-          >
+          <Badge variant="warm" className="text-xs font-semibold">
             Beta
-          </span>
+          </Badge>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{ backgroundColor: "#f0faf2", border: "1px solid #c0e8cc" }}
+          <Badge
+            variant={isOAuthConnected ? "success" : "muted"}
+            className="gap-1.5 px-2.5 py-1 text-xs font-semibold"
           >
             <span
               className="live-dot inline-block w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: "#6daa7c" }}
+              style={{ backgroundColor: isOAuthConnected ? "#2f8f57" : "#c53030" }}
             />
-            <span style={{ color: "#4a8c5c", fontWeight: 600 }}>실시간 추적 중</span>
-          </div>
-          <div
-            className="px-3 py-1.5 rounded-xl"
-            style={{
-              backgroundColor: "#fde8d5",
-              border: "1px solid #f4c4a0",
-              color: "#8c6248",
-            }}
-          >
+            <span
+              style={{ color: isOAuthConnected ? "#4a8c5c" : "#9a7060", fontWeight: 600 }}
+            >
+              {isOAuthConnected ? "연결됨" : "연결 안됨"}
+            </span>
+          </Badge>
+          <Card className="rounded-xl border-[#f4c4a0] bg-[#fde8d5] shadow-none">
+            <CardContent className="px-3 py-1.5 text-xs" style={{ color: "#8c6248" }}>
             현재 세션{" "}
             <span className="font-mono font-bold ml-1" style={{ color: "#d9622a" }}>
               {Math.round(oauthUsage?.sessionUsagePercent ?? 0)}%
             </span>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </header>
 
@@ -175,28 +175,27 @@ export default function App(): React.JSX.Element {
               Claude Code 세션의 토큰 소비량을 추적합니다.
             </p>
           </div>
-          <div
-            className="flex gap-3 px-3 py-2 rounded-2xl text-xs"
-            style={{ backgroundColor: "#f5ebe0", border: "1px solid #ecdccc" }}
-          >
-            <div className="text-right">
-              <div className="font-semibold" style={{ color: "#9a7060" }}>
-                이번 달
+          <Card className="rounded-2xl bg-[#f5ebe0] shadow-none">
+            <CardContent className="flex gap-3 px-3 py-2 text-xs">
+              <div className="text-right">
+                <div className="font-semibold" style={{ color: "#9a7060" }}>
+                  이번 달
+                </div>
+                <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
+                  {formatTokensShort(totalThisMonth)}
+                </div>
               </div>
-              <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
-                {formatTokensShort(totalThisMonth)}
+              <Separator orientation="vertical" className="h-auto bg-[#ecdccc]" />
+              <div className="text-right">
+                <div className="font-semibold" style={{ color: "#9a7060" }}>
+                  최근 7일
+                </div>
+                <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
+                  {formatTokensShort(thisWeekTokens)}
+                </div>
               </div>
-            </div>
-            <div style={{ borderLeft: "1px solid #ecdccc" }} />
-            <div className="text-right">
-              <div className="font-semibold" style={{ color: "#9a7060" }}>
-                최근 7일
-              </div>
-              <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
-                {formatTokensShort(thisWeekTokens)}
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {loading ? (
@@ -222,38 +221,28 @@ export default function App(): React.JSX.Element {
             />
 
             {/* Heatmap Card */}
-            <div
-              className="rounded-2xl p-4"
-              style={{
-                backgroundColor: "#fffcf8",
-                border: "1px solid #ecdccc",
-                boxShadow: "0 2px 16px rgba(180, 100, 50, 0.07)",
-              }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
-                    🗓 활동 히트맵
-                  </h2>
-                  <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
-                    2026년 1월 ~ 6월 토큰 사용 기록
-                  </p>
+            <Card>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
+                      🗓 활동 히트맵
+                    </h2>
+                    <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
+                      2026년 1월 ~ 6월 토큰 사용 기록
+                    </p>
+                  </div>
+                  <Badge variant="warm" className="gap-1.5 px-3 py-1.5 text-xs font-semibold">
+                    <span className="text-sm">🔥</span>
+                    <span className="font-bold text-sm" style={{ color: "#d9622a" }}>
+                      {filteredData.filter((d) => d.tokens > 0).length}
+                    </span>
+                    <span style={{ color: "#c07050" }}>일 활성</span>
+                  </Badge>
                 </div>
-                <div
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                  style={{ backgroundColor: "#fde8d5", border: "1px solid #f4c4a0" }}
-                >
-                  <span className="text-sm">🔥</span>
-                  <span className="font-bold text-sm" style={{ color: "#d9622a" }}>
-                    {filteredData.filter((d) => d.tokens > 0).length}
-                  </span>
-                  <span className="text-xs font-semibold" style={{ color: "#c07050" }}>
-                    일 활성
-                  </span>
-                </div>
-              </div>
-              <TokenHeatmap data={heatmapData} today={today} />
-            </div>
+                <TokenHeatmap data={heatmapData} today={today} />
+              </CardContent>
+            </Card>
 
             {/* Stats */}
             <div>

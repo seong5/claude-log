@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
 import type { OAuthUsageData } from "../../../preload/index.d";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Progress } from "./ui/progress";
+import { Separator } from "./ui/separator";
 
 interface UsagePanelProps {
   usage: OAuthUsageData | null;
   usageLoading: boolean;
   usageError: string | null;
   onRefreshUsage: () => Promise<void>;
-}
-
-function formatTokensFull(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
 }
 
 interface LimitRowProps {
@@ -39,7 +37,6 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
   }, [usedPct]);
 
   const pct = Math.max(0, Math.min(usedPct, 100));
-  const fillWidth = filled ? `${Math.max(pct > 0 ? 1.5 : 0, pct)}%` : "0%";
   const level = getUsageLevel(pct);
   const barColor =
     level === "danger"
@@ -75,7 +72,11 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
             <p className="text-[13px] font-bold leading-tight" style={{ color: "#3a2010" }}>
               {label}
             </p>
-            <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9a7060" }} title={subLabel}>
+            <p
+              className="text-[11px] mt-0.5 truncate"
+              style={{ color: "#9a7060" }}
+              title={subLabel}
+            >
               {subLabel}
             </p>
           </div>
@@ -88,24 +89,15 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
         </span>
       </div>
 
-      <div
-        className="w-full rounded-full overflow-hidden"
-        style={{
-          height: "8px",
-          backgroundColor: "#f0e4d4",
-          border: "1px solid #ecdccc",
+      <Progress
+        className="h-2"
+        value={filled ? Math.max(pct > 0 ? 1.5 : 0, pct) : 0}
+        indicatorStyle={{
+          background: barColor,
+          boxShadow: "0 1px 4px rgba(217, 98, 42, 0.3)",
+          transition: `width ${filled ? "0.9s cubic-bezier(0.22,1,0.36,1)" : "0.2s ease"}`,
         }}
-      >
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: fillWidth,
-            background: barColor,
-            boxShadow: "0 1px 4px rgba(217, 98, 42, 0.3)",
-            transition: "width 0.9s cubic-bezier(0.22,1,0.36,1)",
-          }}
-        />
-      </div>
+      />
     </div>
   );
 }
@@ -117,6 +109,7 @@ export default function UsagePanel({
   onRefreshUsage,
 }: UsagePanelProps) {
   const [lastUpdated, setLastUpdated] = useState("방금 전");
+  const [showPlanInfo, setShowPlanInfo] = useState(false);
   const currentSessionPct = usage?.sessionUsagePercent ?? 0;
   const h = Math.floor((usage?.sessionResetSeconds ?? 0) / 3600);
   const m = Math.floor(((usage?.sessionResetSeconds ?? 0) % 3600) / 60);
@@ -155,16 +148,38 @@ export default function UsagePanel({
           <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
             📊 플랜 사용 한도
           </h2>
-          <span
-            className="text-[10px] px-2 py-0.5 rounded-full font-bold"
-            style={{
-              backgroundColor: "#fde8d5",
-              color: "#d9622a",
-              border: "1px solid #f4c4a0",
-            }}
-          >
-            {usage?.planName ?? "Pro"}
-          </span>
+          <div className="relative flex items-center gap-1">
+            <Badge variant="warm">{usage?.planName ?? "Pro"}</Badge>
+            <Button
+              onClick={() => setShowPlanInfo((prev) => !prev)}
+              variant="ghost"
+              size="icon-xs"
+              className="rounded-full p-0 text-[10px] font-bold"
+              style={{
+                backgroundColor: "#f5ebe0",
+                color: "#9a7060",
+                border: "1px solid #ecdccc",
+                lineHeight: 1,
+              }}
+              aria-label="플랜 데이터 안내 보기"
+              title="플랜 데이터 안내"
+            >
+              ?
+            </Button>
+            {showPlanInfo ? (
+              <div
+                className="absolute top-full left-0 mt-1 px-2 py-1 rounded-md text-[10px] font-medium whitespace-nowrap z-10"
+                style={{
+                  backgroundColor: "#fff6eb",
+                  color: "#9a7060",
+                  border: "1px solid #ecdccc",
+                  boxShadow: "0 2px 8px rgba(180, 100, 50, 0.12)",
+                }}
+              >
+                Oauth usage api 기반 데이터입니다.
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -178,7 +193,7 @@ export default function UsagePanel({
         />
 
         {/* Divider */}
-        <div style={{ borderTop: "1px solid #ecdccc" }} />
+        <Separator className="bg-[#ecdccc]" />
 
         {/* Weekly Section Header */}
         <div className="flex items-center justify-between">
@@ -209,19 +224,7 @@ export default function UsagePanel({
           >
             ⚠️ {usageError}
           </div>
-        ) : (
-          <div
-            className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2 rounded-xl text-[11px] font-semibold"
-            style={{ backgroundColor: "#f5ebe0", border: "1px solid #ecdccc" }}
-          >
-            <span className="min-w-0 truncate" style={{ color: "#9a7060" }} title="OAuth usage API 기반 데이터">
-              OAuth usage API 기반 데이터
-            </span>
-            <span className="shrink-0" style={{ color: "#b89680" }}>
-              {usage ? "연결됨" : "데이터 없음"}
-            </span>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Footer */}
@@ -229,12 +232,12 @@ export default function UsagePanel({
         className="flex items-center gap-1.5 mt-4 pt-3"
         style={{ borderTop: "1px solid #ecdccc" }}
       >
-        <button
-          type="button"
+        <Button
           onClick={() => void onRefreshUsage()}
           disabled={usageLoading}
-          className="flex items-center justify-center rounded-full transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          variant="ghost"
+          size="icon-xs"
+          className="rounded-full"
           title="새로고침"
         >
           <svg
@@ -252,7 +255,7 @@ export default function UsagePanel({
             <path d="M1 20v-6h6" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
-        </button>
+        </Button>
         <span className="text-[10px] font-semibold" style={{ color: "#c0a090" }}>
           마지막 업데이트: {lastUpdated}
         </span>

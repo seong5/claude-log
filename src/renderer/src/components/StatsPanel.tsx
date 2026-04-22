@@ -1,6 +1,10 @@
 import { useMemo } from 'react'
 import type { DayData } from '../../../preload/index.d'
 import { formatTokens, formatLocalYmd } from '../lib/formatters'
+import { Badge } from './ui/badge'
+import { Card, CardContent } from './ui/card'
+import { Progress } from './ui/progress'
+import { Separator } from './ui/separator'
 
 function shortModelName(model: string): string {
   if (model.includes('opus')) return `Opus ${extractVersion(model)}`
@@ -38,30 +42,25 @@ interface StatCardProps {
 
 function StatCard({ label, value, sub, color = '#c2410c', icon, badge }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
-      </div>
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <div className="font-mono font-bold text-2xl" style={{ color }}>
-          {value}
+    <Card className="rounded-xl bg-white shadow-sm">
+      <CardContent className="flex flex-col gap-2 p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icon}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
         </div>
-        {badge && (
-          <span
-            className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
-            style={{
-              backgroundColor: badge.positive ? '#f0faf2' : '#fff0f0',
-              color: badge.positive ? '#2f8f57' : '#c53030',
-              border: `1px solid ${badge.positive ? '#bfe7cd' : '#f5b3bb'}`,
-            }}
-          >
-            {badge.positive ? '▲' : '▼'} {badge.text}
-          </span>
-        )}
-      </div>
-      {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
-    </div>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <div className="font-mono text-2xl font-bold" style={{ color }}>
+            {value}
+          </div>
+          {badge && (
+            <Badge variant={badge.positive ? 'success' : 'muted'} className="text-[11px] px-1.5 py-0.5">
+              {badge.positive ? '▲' : '▼'} {badge.text}
+            </Badge>
+          )}
+        </div>
+        {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -190,49 +189,50 @@ export default function StatsPanel({ data, allDays = [] }: Props) {
 
       {/* 모델별 사용량 */}
       {modelTotals.length > 0 && (
-        <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-lg">🤖</span>
-            <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">모델별 사용량</span>
-          </div>
-          <div className="space-y-2.5">
-            {modelTotals.map(({ model, tokens }) => {
-              const pct = totalTokens > 0 ? (tokens / totalTokens) * 100 : 0
-              const color = modelColor(model)
-              return (
-                <div key={model}>
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className="text-xs font-semibold text-[#3d2918]">
-                      {shortModelName(model)}
-                    </span>
-                    <span className="font-mono text-xs text-[#6b5344]">
-                      {formatTokens(tokens)}{' '}
-                      <span className="text-[#b0907a]">({pct.toFixed(0)}%)</span>
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#f0e4d8]">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%`, backgroundColor: color }}
+        <Card className="rounded-xl bg-white shadow-sm">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-lg">🤖</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">모델별 사용량</span>
+            </div>
+            <div className="space-y-2.5">
+              {modelTotals.map(({ model, tokens }) => {
+                const pct = totalTokens > 0 ? (tokens / totalTokens) * 100 : 0
+                const color = modelColor(model)
+                return (
+                  <div key={model}>
+                    <div className="mb-1 flex items-baseline justify-between">
+                      <span className="text-xs font-semibold text-[#3d2918]">{shortModelName(model)}</span>
+                      <span className="font-mono text-xs text-[#6b5344]">
+                        {formatTokens(tokens)} <span className="text-[#b0907a]">({pct.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <Progress
+                      className="h-2 bg-[#f0e4d8] border-transparent"
+                      value={pct}
+                      indicatorStyle={{ backgroundColor: color }}
                     />
                   </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {peak && (
-            <div className="mt-3 pt-3 border-t border-[#ecdccc] flex justify-between items-center">
-              <div className="text-xs text-[#6b5344]">
-                📈 최고 사용일
-                <span className="ml-1.5 font-semibold text-[#3d2918]">{peakDate}</span>
-              </div>
-              <div className="font-mono text-xs font-bold text-[#c2410c]">
-                {formatTokens(peak.tokens)}
-              </div>
+                )
+              })}
             </div>
-          )}
-        </div>
+
+            {peak && (
+              <>
+                <Separator className="mt-3 bg-[#ecdccc]" />
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-xs text-[#6b5344]">
+                    📈 최고 사용일
+                    <span className="ml-1.5 font-semibold text-[#3d2918]">{peakDate}</span>
+                  </div>
+                  <div className="font-mono text-xs font-bold text-[#c2410c]">
+                    {formatTokens(peak.tokens)}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )
