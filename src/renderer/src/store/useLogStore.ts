@@ -1,33 +1,50 @@
 import { create } from 'zustand'
-import type { DayData } from '../../../preload/index.d'
+import type { DayData, SessionData } from '../../../preload/index.d'
 
 interface LogState {
   days: DayData[]
   loading: boolean
+  currentSession: SessionData | null
+  recentFiveHourTokens: number
+  oldestRecentEntryTime: number | null
   init: () => Promise<void>
   destroy: () => void
 }
 
-let _unsubscribe: (() => void) | null = null
+export const useLogStore = create<LogState>((set) => {
+  let _unsubscribe: (() => void) | null = null
 
-export const useLogStore = create<LogState>((set) => ({
-  days: [],
-  loading: true,
+  return {
+    days: [],
+    loading: true,
+    currentSession: null,
+    recentFiveHourTokens: 0,
+    oldestRecentEntryTime: null,
 
-  init: async () => {
-    // 중복 구독 방지
-    _unsubscribe?.()
+    init: async () => {
+      _unsubscribe?.()
 
-    const days = await window.claudeLog.getDays()
-    set({ days, loading: false })
+      const [days, currentSession, recentFiveHourTokens, oldestRecentEntryTime] = await Promise.all([
+        window.claudeLog.getDays(),
+        window.claudeLog.getCurrentSession(),
+        window.claudeLog.getRecentFiveHourTokens(),
+        window.claudeLog.getOldestRecentEntryTime(),
+      ])
+      set({ days, loading: false, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
 
-    _unsubscribe = window.claudeLog.onUpdate((updated) => {
-      set({ days: updated })
-    })
-  },
+      _unsubscribe = window.claudeLog.onUpdate(async (updated) => {
+        const [currentSession, recentFiveHourTokens, oldestRecentEntryTime] = await Promise.all([
+          window.claudeLog.getCurrentSession(),
+          window.claudeLog.getRecentFiveHourTokens(),
+          window.claudeLog.getOldestRecentEntryTime(),
+        ])
+        set({ days: updated, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
+      })
+    },
 
-  destroy: () => {
-    _unsubscribe?.()
-    _unsubscribe = null
-  },
-}))
+    destroy: () => {
+      _unsubscribe?.()
+      _unsubscribe = null
+    },
+  }
+})

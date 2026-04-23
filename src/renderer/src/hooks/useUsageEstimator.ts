@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_LIMIT = 1_000_000;
 const LIMIT_KEY = "claude-log:usage-estimator-limit";
 const MANUAL_LIMIT_KEY = "claude-log:usage-estimator-manual-limit";
-const HISTORY_KEY = "claude-log:usage-estimator-history";
-
 type LimitSource = "default" | "learned" | "manual";
 
 function readNumber(key: string, fallback: number): number {
@@ -15,18 +13,6 @@ function readNumber(key: string, fallback: number): number {
     return Number.isFinite(value) && value > 0 ? value : fallback;
   } catch {
     return fallback;
-  }
-}
-
-function readHistory(): number[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as number[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((v) => Number.isFinite(v) && v > 0).slice(-30);
-  } catch {
-    return [];
   }
 }
 
@@ -44,12 +30,14 @@ export function useUsageEstimator(usedTokens: number, blockStartedAt: number, bl
     const n = readNumber(MANUAL_LIMIT_KEY, 0);
     return n > 0 ? n : null;
   });
-  const [history, setHistory] = useState<number[]>(() => readHistory());
+  const [history, setHistory] = useState<number[]>([]);
+  const historyRef = useRef(history);
+  historyRef.current = history;
 
   useEffect(() => {
     if (blockStartedAt <= lastLearnedBlockStart) return;
 
-    const nextHistory = [...history, usedTokens].filter((v) => v > 0).slice(-30);
+    const nextHistory = [...historyRef.current, usedTokens].filter((v) => v > 0).slice(-30);
     const p90 = percentile90(nextHistory);
     const nextLimit = Math.max(DEFAULT_LIMIT, Math.round(p90 * 1.05));
 
@@ -58,12 +46,11 @@ export function useUsageEstimator(usedTokens: number, blockStartedAt: number, bl
     setLastLearnedBlockStart(blockStartedAt);
 
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
       localStorage.setItem(LIMIT_KEY, String(nextLimit));
     } catch {
       /* ignore */
     }
-  }, [blockStartedAt, history, lastLearnedBlockStart, usedTokens]);
+  }, [blockStartedAt, lastLearnedBlockStart, usedTokens]);
 
   const estimatedLimit = manualLimit ?? learnedLimit;
   const usagePct = useMemo(() => {

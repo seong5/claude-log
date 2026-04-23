@@ -7,6 +7,8 @@ const claudeLogAPI = {
   getCurrentSession: () => ipcRenderer.invoke('claude-log:get-current-session'),
   getRecentFiveHourTokens: () => ipcRenderer.invoke('claude-log:get-recent-five-hour-tokens'),
   getOldestRecentEntryTime: () => ipcRenderer.invoke('claude-log:get-oldest-recent-entry-time'),
+  getAdminWeekUsage: () => ipcRenderer.invoke('claude-log:get-admin-week-usage'),
+  getOAuthUsage: () => ipcRenderer.invoke('claude-log:get-oauth-usage'),
   onUpdate: (callback: (days: DayData[]) => void) => {
     const handler = (_: Electron.IpcRendererEvent, days: DayData[]) => callback(days)
     ipcRenderer.on('claude-log:update', handler)
@@ -14,16 +16,9 @@ const claudeLogAPI = {
   },
 }
 
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('claudeLog', claudeLogAPI)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore
-  window.electron = electronAPI
-  // @ts-ignore
-  window.claudeLog = claudeLogAPI
+try {
+  contextBridge.exposeInMainWorld('electron', electronAPI)
+  contextBridge.exposeInMainWorld('claudeLog', claudeLogAPI)
+} catch (error) {
+  console.error(error)
 }

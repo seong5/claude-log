@@ -1,13 +1,11 @@
 import { useMemo } from 'react'
-import type { DayData } from './TokenHeatmap'
+import type { DayData } from '../../../preload/index.d'
+import { formatTokens, formatLocalYmd } from '../lib/formatters'
+import { Badge } from './ui/badge'
+import { Card, CardContent } from './ui/card'
+import { Progress } from './ui/progress'
+import { Separator } from './ui/separator'
 
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return n.toString()
-}
-
-/** claude-opus-4-6-20260114 → Opus 4.6 */
 function shortModelName(model: string): string {
   if (model.includes('opus')) return `Opus ${extractVersion(model)}`
   if (model.includes('sonnet')) return `Sonnet ${extractVersion(model)}`
@@ -39,52 +37,102 @@ interface StatCardProps {
   sub?: string
   color?: string
   icon: string
+  badge?: { text: string; positive: boolean } | null
 }
 
-function StatCard({ label, value, sub, color = '#c2410c', icon }: StatCardProps) {
+function StatCard({ label, value, sub, color = '#c2410c', icon, badge }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
-      </div>
-      <div className="font-mono font-bold text-2xl" style={{ color }}>
-        {value}
-      </div>
-      {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
-    </div>
+    <Card className="rounded-xl bg-white shadow-sm">
+      <CardContent className="flex flex-col gap-2 p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icon}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">{label}</span>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <div className="font-mono text-2xl font-bold" style={{ color }}>
+            {value}
+          </div>
+          {badge && (
+            <Badge variant={badge.positive ? 'success' : 'muted'} className="text-[11px] px-1.5 py-0.5">
+              {badge.positive ? '▲' : '▼'} {badge.text}
+            </Badge>
+          )}
+        </div>
+        {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
+      </CardContent>
+    </Card>
   )
 }
 
 interface Props {
   data: DayData[]
+  allDays?: DayData[]
+  today: string
 }
 
-export default function StatsPanel({ data }: Props) {
-  const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
-  const totalInput = data.reduce((s, d) => s + d.inputTokens, 0)
-  const totalOutput = data.reduce((s, d) => s + d.outputTokens, 0)
-  const activeDays = data.filter((d) => d.tokens > 0).length
-  const totalSessions = data.reduce((s, d) => s + d.sessions, 0)
+export default function StatsPanel({ data, allDays = [], today }: Props) {
+  const { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak } =
+    useMemo(() => {
+      const totalTokens = data.reduce((s, d) => s + d.tokens, 0)
+      const activeDays = data.filter((d) => d.tokens > 0).length
 
-  const peak = data.reduce(
-    (best, d) => (d.tokens > (best?.tokens ?? 0) ? d : best),
-    data[0] ?? null
-  )
-  const peakDate = peak
-    ? new Date(peak.date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
-    : '-'
+      const todayData = data.find((d) => d.date === today)
+      const todaySessions = todayData?.sessions ?? 0
+      const todayTokens = todayData?.tokens ?? 0
 
-  // Streak — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
-  let streak = 0
-  const lastIdx = data.length - 1
-  const startIdx = lastIdx >= 0 && data[lastIdx].tokens === 0 ? lastIdx - 1 : lastIdx
-  for (let i = startIdx; i >= 0; i--) {
-    if (data[i].tokens > 0) streak++
-    else break
-  }
+      const peak = data.reduce(
+        (best, d) => (d.tokens > (best?.tokens ?? 0) ? d : best),
+        data[0] ?? null,
+      )
+      const peakDate = peak
+        ? new Date(peak.date + 'T00:00:00').toLocaleDateString('ko-KR', {
+            month: 'short',
+            day: 'numeric',
+          })
+        : '-'
 
-  // Aggregate model breakdown across all days in the selected period
+      // 현재 스트릭 — 오늘 아직 사용이 없어도 어제까지의 연속일수를 유지
+      let streak = 0
+      const lastIdx = data.length - 1
+      const startIdx = lastIdx >= 0 && data[lastIdx].tokens === 0 ? lastIdx - 1 : lastIdx
+      for (let i = startIdx; i >= 0; i--) {
+        if (data[i].tokens > 0) streak++
+        else break
+      }
+
+      return { totalTokens, activeDays, todaySessions, todayTokens, peak, peakDate, streak }
+    }, [data, today])
+
+  // 역대 최장 스트릭
+  const longestStreak = useMemo(() => {
+    let max = 0
+    let temp = 0
+    for (const d of data) {
+      if (d.tokens > 0) { temp++; max = Math.max(max, temp) }
+      else temp = 0
+    }
+    return max
+  }, [data])
+
+  // 주간 증감률: 이번 주 7일 vs 지난 주 7일 (allDays 기준으로 탭 전환과 무관하게 일관)
+  const weekGrowth = useMemo(() => {
+    if (allDays.length === 0) return null
+    const map = new Map(allDays.map((d) => [d.date, d]))
+    let thisWeek = 0
+    let lastWeek = 0
+    for (let i = 0; i < 7; i++) {
+      const d1 = new Date(today + 'T00:00:00')
+      d1.setDate(d1.getDate() - i)
+      thisWeek += map.get(formatLocalYmd(d1))?.tokens ?? 0
+      const d2 = new Date(today + 'T00:00:00')
+      d2.setDate(d2.getDate() - 7 - i)
+      lastWeek += map.get(formatLocalYmd(d2))?.tokens ?? 0
+    }
+    if (lastWeek === 0) return null
+    return Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
+  }, [allDays, today])
+
+  // 모델별 합산
   const modelTotals = useMemo(() => {
     const map = new Map<string, number>()
     for (const day of data) {
@@ -101,27 +149,32 @@ export default function StatsPanel({ data }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* 4-card row */}
+      {/* 4-card grid */}
       <div className="grid grid-cols-2 gap-3">
         <StatCard
           icon="🔥"
           label="연속 사용일"
           value={`${streak}일`}
-          sub="현재 스트릭"
+          sub={longestStreak > streak ? `역대 최고 ${longestStreak}일` : '현재가 최고 기록!'}
           color="#c2410c"
         />
         <StatCard
           icon="📊"
-          label="총 토큰"
+          label="올해 누적"
           value={formatTokens(totalTokens)}
           sub={`활성일 ${activeDays}일`}
           color="#c2410c"
+          badge={
+            weekGrowth !== null
+              ? { text: `${Math.abs(weekGrowth)}% 전주 대비`, positive: weekGrowth >= 0 }
+              : null
+          }
         />
         <StatCard
           icon="💬"
-          label="총 세션"
-          value={totalSessions.toLocaleString()}
-          sub={`일평균 ${(totalSessions / Math.max(activeDays, 1)).toFixed(1)}회`}
+          label="오늘 세션"
+          value={`${todaySessions}회`}
+          sub={todayTokens > 0 ? `오늘 ${formatTokens(todayTokens)} 사용` : '오늘 사용 없음'}
           color="#6d28d9"
         />
         <StatCard
@@ -133,84 +186,52 @@ export default function StatsPanel({ data }: Props) {
         />
       </div>
 
-      {/* 입출력 비율 */}
-      <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">⚡</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">입출력 비율</span>
-        </div>
-        <div className="flex gap-3 items-end mb-2">
-          <div>
-            <div className="text-xs text-[#6b5344] mb-0.5">입력 토큰</div>
-            <div className="font-mono font-bold text-xl text-sky-700">{formatTokens(totalInput)}</div>
-          </div>
-          <div className="text-[#8c6248] mb-1 text-lg font-light">/</div>
-          <div>
-            <div className="text-xs text-[#6b5344] mb-0.5">출력 토큰</div>
-            <div className="font-mono font-bold text-xl text-[#c2410c]">{formatTokens(totalOutput)}</div>
-          </div>
-        </div>
-        <div className="h-2 rounded-full overflow-hidden bg-[#f0e4d8]">
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${(totalInput / Math.max(totalTokens, 1)) * 100}%`,
-              background: 'linear-gradient(to right, #0284c7, #ea580c)',
-            }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-[#6b5344] mt-1">
-          <span>입력 {((totalInput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
-          <span>출력 {((totalOutput / Math.max(totalTokens, 1)) * 100).toFixed(0)}%</span>
-        </div>
-      </div>
-
       {/* 모델별 사용량 */}
       {modelTotals.length > 0 && (
-        <div className="rounded-xl border border-[#ecdccc] bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-lg">🤖</span>
-            <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">모델별 사용량</span>
-          </div>
-          <div className="space-y-2.5">
-            {modelTotals.map(({ model, tokens }) => {
-              const pct = totalTokens > 0 ? (tokens / totalTokens) * 100 : 0
-              const color = modelColor(model)
-              return (
-                <div key={model}>
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className="text-xs font-semibold text-[#3d2918]">
-                      {shortModelName(model)}
-                    </span>
-                    <span className="font-mono text-xs text-[#6b5344]">
-                      {formatTokens(tokens)}{' '}
-                      <span className="text-[#b0907a]">({pct.toFixed(0)}%)</span>
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#f0e4d8]">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%`, backgroundColor: color }}
+        <Card className="rounded-xl bg-white shadow-sm">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-lg">🤖</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">모델별 사용량</span>
+            </div>
+            <div className="space-y-2.5">
+              {modelTotals.map(({ model, tokens }) => {
+                const pct = totalTokens > 0 ? (tokens / totalTokens) * 100 : 0
+                const color = modelColor(model)
+                return (
+                  <div key={model}>
+                    <div className="mb-1 flex items-baseline justify-between">
+                      <span className="text-xs font-semibold text-[#3d2918]">{shortModelName(model)}</span>
+                      <span className="font-mono text-xs text-[#6b5344]">
+                        {formatTokens(tokens)} <span className="text-[#b0907a]">({pct.toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                    <Progress
+                      className="h-2 bg-[#f0e4d8] border-transparent"
+                      value={pct}
+                      indicatorStyle={{ backgroundColor: color }}
                     />
                   </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* 최고 사용일 */}
-          {peak && (
-            <div className="mt-3 pt-3 border-t border-[#ecdccc] flex justify-between items-center">
-              <div className="text-xs text-[#6b5344]">
-                📈 최고 사용일
-                <span className="ml-1.5 font-semibold text-[#3d2918]">{peakDate}</span>
-              </div>
-              <div className="font-mono text-xs font-bold text-[#c2410c]">
-                {formatTokens(peak.tokens)}
-              </div>
+                )
+              })}
             </div>
-          )}
-        </div>
+
+            {peak && (
+              <>
+                <Separator className="mt-3 bg-[#ecdccc]" />
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-xs text-[#6b5344]">
+                    📈 최고 사용일
+                    <span className="ml-1.5 font-semibold text-[#3d2918]">{peakDate}</span>
+                  </div>
+                  <div className="font-mono text-xs font-bold text-[#c2410c]">
+                    {formatTokens(peak.tokens)}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

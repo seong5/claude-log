@@ -1,207 +1,125 @@
 import { useEffect, useState } from "react";
+import type { OAuthUsageData } from "../../../preload/index.d";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Progress } from "./ui/progress";
+import { Separator } from "./ui/separator";
 
 interface UsagePanelProps {
-  currentSessionTokens: number;
-  currentBlockTokens: number;
-  recentFiveHourTokens: number;
-  estimatedLimit: number;
-  usagePct: number;
-  blockEndsAt: number;
-  onCaptureLimit: () => void;
+  usage: OAuthUsageData | null;
+  usageLoading: boolean;
+  usageError: string | null;
+  onRefreshUsage: () => Promise<void>;
 }
 
-function formatTokensFull(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString();
-}
-
-function getSessionResetLabel(): string {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  const diff = midnight.getTime() - now.getTime();
-  const h = Math.floor(diff / 3_600_000);
-  const m = Math.floor((diff % 3_600_000) / 60_000);
-  return `${h}시간 ${m}분 후 초기화`;
-}
-
-function getBarColor(pct: number): string {
-  if (pct >= 90) return "#ef4444";
-  if (pct >= 70) return "#f59e0b";
-  return "#d9622a";
-}
-
-function getBarBg(pct: number): string {
-  if (pct >= 90) return "linear-gradient(90deg, #fca5a5 0%, #ef4444 100%)";
-  if (pct >= 70) return "linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%)";
-  return "linear-gradient(90deg, #f4a055 0%, #d9622a 100%)";
-}
-
-function formatHm(ts: number): string {
-  const d = new Date(ts);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
-}
-
-function ceilToMinute(ts: number): number {
-  return Math.ceil(ts / 60_000) * 60_000;
-}
-
-function floorToMinute(ts: number): number {
-  return Math.floor(ts / 60_000) * 60_000;
-}
-
-function getNextFiveHourBoundary(ts: number): number {
-  const d = new Date(ts);
-  d.setSeconds(0, 0);
-  const hour = d.getHours();
-  const nextHour = (Math.floor(hour / 5) + 1) * 5;
-  if (nextHour >= 24) {
-    d.setDate(d.getDate() + 1);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  }
-  d.setHours(nextHour, 0, 0, 0);
-  return d.getTime();
-}
-
-interface UsageRowProps {
+interface LimitRowProps {
   label: string;
   subLabel: string;
-  tokens: number;
-  limit: number | null;
-  animDelay: number;
-  showPercentage: boolean;
-  forcedPct?: number;
-  infoText?: string;
-  onInfoClick?: () => void;
+  usedPct: number;
+  rightLabel: string;
+  icon: string;
 }
 
-function UsageRow({
-  label,
-  subLabel,
-  tokens,
-  limit,
-  animDelay,
-  showPercentage,
-  forcedPct,
-  infoText,
-  onInfoClick,
-}: UsageRowProps) {
+type UsageLevel = "safe" | "warn" | "danger";
+
+function getUsageLevel(pct: number): UsageLevel {
+  if (pct >= 85) return "danger";
+  if (pct >= 60) return "warn";
+  return "safe";
+}
+
+function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps) {
   const [filled, setFilled] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setFilled(true), animDelay + 100);
+    setFilled(false);
+    const t = setTimeout(() => setFilled(true), 120);
     return () => clearTimeout(t);
-  }, [animDelay]);
+  }, [usedPct]);
 
-  const pct =
-    typeof forcedPct === "number"
-      ? Math.max(0, Math.min(forcedPct, 100))
-      : limit
-        ? Math.min((tokens / limit) * 100, 100)
-        : 0;
-  const displayPct = Math.round(pct);
-  const fillWidth = filled ? `${Math.max(pct > 0 ? 1.5 : 0, pct)}%` : "0%";
-  const barColor = getBarColor(pct);
-  const barBg = getBarBg(pct);
+  const pct = Math.max(0, Math.min(usedPct, 100));
+  const level = getUsageLevel(pct);
+  const barColor =
+    level === "danger"
+      ? "linear-gradient(to right, #e05252, #c53030)"
+      : level === "warn"
+        ? "linear-gradient(to right, #f2a654, #dc8a2f)"
+        : "linear-gradient(to right, #5abf8a, #3d9f6a)";
+  const badgeStyle =
+    level === "danger"
+      ? {
+          backgroundColor: "#ffe4e6",
+          color: "#c53030",
+          border: "1px solid #f5b3bb",
+        }
+      : level === "warn"
+        ? {
+            backgroundColor: "#fff4de",
+            color: "#b26a00",
+            border: "1px solid #f4d39b",
+          }
+        : {
+            backgroundColor: "#e8f7ee",
+            color: "#2f8f57",
+            border: "1px solid #bfe7cd",
+          };
 
   return (
-    <div className="flex items-center gap-4">
-      {/* Left: label + sublabel */}
-      <div className="w-40 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-semibold" style={{ color: "#3a2010" }}>
-            {label}
-          </p>
-          {infoText ? (
-            <button
-              type="button"
-              onClick={onInfoClick}
-              title={onInfoClick ? undefined : infoText}
-              className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold select-none"
-              style={{
-                backgroundColor: "#f5ebe0",
-                border: "1px solid #e2cbb8",
-                color: "#a26f4f",
-                cursor: onInfoClick ? "pointer" : "help",
-              }}
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm shrink-0">{icon}</span>
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold leading-tight" style={{ color: "#3a2010" }}>
+              {label}
+            </p>
+            <p
+              className="text-[11px] mt-0.5 truncate"
+              style={{ color: "#9a7060" }}
+              title={subLabel}
             >
-              ?
-            </button>
-          ) : null}
+              {subLabel}
+            </p>
+          </div>
         </div>
-        <p className="text-xs mt-0.5" style={{ color: "#a08060" }}>
-          {subLabel}
-        </p>
-      </div>
-
-      {/* Center: progress bar */}
-      <div className="flex-1">
-        <div
-          className="w-full rounded-full overflow-hidden"
-          style={{
-            height: "8px",
-            backgroundColor: "#ede4d8",
-            boxShadow: "inset 0 1px 3px rgba(100,50,20,0.12)",
-          }}
+        <span
+          className="text-[12px] font-bold px-2.5 py-1 rounded-full shrink-0"
+          style={badgeStyle}
         >
-          {limit ? (
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: fillWidth,
-                background: barBg,
-                boxShadow: pct > 2 ? `0 0 8px rgba(217,98,42,0.4)` : "none",
-                transition: `width 1.1s cubic-bezier(0.22,1,0.36,1) ${animDelay}ms`,
-              }}
-            />
-          ) : (
-            <div
-              className="h-full w-full rounded-full"
-              style={{
-                background:
-                  "repeating-linear-gradient(90deg,#e8ddd2 0px,#ddd3c7 10px,#e8ddd2 20px)",
-                opacity: 0.7,
-              }}
-            />
-          )}
-        </div>
+          {rightLabel}
+        </span>
       </div>
 
-      {/* Right: percentage or token count */}
-      <div className="w-24 shrink-0 text-right">
-        {showPercentage && limit ? (
-          <span className="text-sm font-bold font-mono" style={{ color: barColor }}>
-            {displayPct}% 사용
-          </span>
-        ) : (
-          <span className="text-sm font-mono font-semibold" style={{ color: "#b89070" }}>
-            {formatTokensFull(tokens)}
-          </span>
-        )}
-      </div>
+      <Progress
+        className="h-2"
+        value={filled ? Math.max(pct > 0 ? 1.5 : 0, pct) : 0}
+        indicatorStyle={{
+          background: barColor,
+          boxShadow: "0 1px 4px rgba(217, 98, 42, 0.3)",
+          transition: `width ${filled ? "0.9s cubic-bezier(0.22,1,0.36,1)" : "0.2s ease"}`,
+        }}
+      />
     </div>
   );
 }
 
 export default function UsagePanel({
-  currentSessionTokens,
-  currentBlockTokens,
-  recentFiveHourTokens,
-  estimatedLimit,
-  usagePct,
-  blockEndsAt,
-  onCaptureLimit,
+  usage,
+  usageLoading,
+  usageError,
+  onRefreshUsage,
 }: UsagePanelProps) {
   const [lastUpdated, setLastUpdated] = useState("방금 전");
-  const [blockResetLabel, setBlockResetLabel] = useState("계산 중...");
-  const [showWindowGuide, setShowWindowGuide] = useState(false);
-  const displayWindowEnd = getNextFiveHourBoundary(Date.now());
-  const displayWindowStart = displayWindowEnd - 5 * 60 * 60 * 1000;
-  const windowRangeLabel = `${formatHm(displayWindowStart)}~${formatHm(displayWindowEnd)}`;
+  const [showPlanInfo, setShowPlanInfo] = useState(false);
+  const currentSessionPct = usage?.sessionUsagePercent ?? 0;
+  const h = Math.floor((usage?.sessionResetSeconds ?? 0) / 3600);
+  const m = Math.floor(((usage?.sessionResetSeconds ?? 0) % 3600) / 60);
+  const currentSessionSubLabel =
+    usage && usage.sessionResetSeconds > 0 ? `${h}시간 ${m}분 후 초기화` : "곧 초기화";
+  const weeklyAllModelsPct = usage?.weeklyAllModelsPercent ?? 0;
+  const weeklyAllModelsReset = usage?.weeklyAllModelsResetLabel
+    ? `${usage.weeklyAllModelsResetLabel} 초기화`
+    : "주간 리셋 정보 없음";
 
   useEffect(() => {
     setLastUpdated("방금 전");
@@ -214,123 +132,132 @@ export default function UsagePanel({
       });
     }, 60_000);
     return () => clearInterval(t);
-  }, [usagePct, currentSessionTokens]);
-
-  useEffect(() => {
-    const updateLabel = (): void => {
-      const now = Date.now();
-      const diff = Math.max(blockEndsAt - now, 0);
-      const h = Math.floor(diff / 3_600_000);
-      const m = Math.floor((diff % 3_600_000) / 60_000);
-      setBlockResetLabel(`${h}시간 ${m}분 후 초기화`);
-    };
-    updateLabel();
-    const t = setInterval(updateLabel, 30_000);
-    return () => clearInterval(t);
-  }, [blockEndsAt]);
+  }, [usage]);
 
   return (
     <div
-      className="rounded-2xl p-5"
+      className="rounded-2xl p-4"
       style={{
         backgroundColor: "#fffcf8",
-        border: "1px solid #e8d8c8",
-        boxShadow: "0 2px 20px rgba(160,80,30,0.08)",
+        border: "1px solid #ecdccc",
+        boxShadow: "0 2px 16px rgba(180, 100, 50, 0.07)",
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
-          ⚡ 사용량 한도
-        </h2>
-        <span
-          className="text-xs font-bold px-2.5 py-1 rounded-full"
-          style={{
-            backgroundColor: "#fde8d5",
-            border: "1px solid #f4c4a0",
-            color: "#c06030",
-          }}
-        >
-          Pro
-        </span>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
+            📊 플랜 사용 한도
+          </h2>
+          <div className="relative flex items-center gap-1">
+            <Badge variant="warm">{usage?.planName ?? "Pro"}</Badge>
+            <Button
+              onClick={() => setShowPlanInfo((prev) => !prev)}
+              variant="ghost"
+              size="icon-xs"
+              className="rounded-full p-0 text-[10px] font-bold"
+              style={{
+                backgroundColor: "#f5ebe0",
+                color: "#9a7060",
+                border: "1px solid #ecdccc",
+                lineHeight: 1,
+              }}
+              aria-label="플랜 데이터 안내 보기"
+              title="플랜 데이터 안내"
+            >
+              ?
+            </Button>
+            {showPlanInfo ? (
+              <div
+                className="absolute top-full left-0 mt-1 px-2 py-1 rounded-md text-[10px] font-medium whitespace-nowrap z-10"
+                style={{
+                  backgroundColor: "#fff6eb",
+                  color: "#9a7060",
+                  border: "1px solid #ecdccc",
+                  boxShadow: "0 2px 8px rgba(180, 100, 50, 0.12)",
+                }}
+              >
+                Oauth usage api 기반 데이터입니다.
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-4">
-        {/* Current session in 5-hour sliding window */}
-        <UsageRow
+        <LimitRow
+          icon="⚡"
           label="현재 세션"
-          subLabel={`예상 한도 : ${formatTokensFull(estimatedLimit)}`}
-          tokens={recentFiveHourTokens}
-          limit={estimatedLimit}
-          animDelay={0}
-          showPercentage={true}
-          infoText={`최근 5시간 슬라이딩 윈도우 기준: ${windowRangeLabel}`}
-          onInfoClick={() => setShowWindowGuide((prev) => !prev)}
+          subLabel={currentSessionSubLabel}
+          usedPct={currentSessionPct}
+          rightLabel={`${Math.round(currentSessionPct)}% 사용`}
         />
-        {showWindowGuide ? (
-          <div
-            className="text-xs px-3 py-2 rounded-xl"
-            style={{ backgroundColor: "#fff4ea", border: "1px solid #f4c4a0", color: "#9a5d3d" }}
-          >
-            현재 슬라이딩 윈도우: {windowRangeLabel}
-          </div>
-        ) : null}
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onCaptureLimit}
-            disabled={recentFiveHourTokens <= 0}
-            className="text-xs font-bold px-3 py-1.5 rounded-xl transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+        {/* Divider */}
+        <Separator className="bg-[#ecdccc]" />
+
+        {/* Weekly Section Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-bold" style={{ color: "#3a2010" }}>
+              주간 한도
+            </p>
+          </div>
+        </div>
+
+        {/* Weekly All Models */}
+        <LimitRow
+          icon="🤖"
+          label="전체 모델"
+          subLabel={weeklyAllModelsReset}
+          usedPct={weeklyAllModelsPct}
+          rightLabel={`${Math.round(weeklyAllModelsPct)}% 사용`}
+        />
+
+        {usageError ? (
+          <div
+            className="text-[11px] px-3 py-2 rounded-xl font-medium"
             style={{
               backgroundColor: "#fde8d5",
+              color: "#c05030",
               border: "1px solid #f4c4a0",
-              color: "#c06030",
             }}
           >
-            지금 값을 한도로 설정
-          </button>
-        </div>
-
-        <div style={{ borderTop: "1px solid #ede4d8" }} />
-
-        {/* Session absolute token count */}
-        <div className="mb-1">
-          <p className="text-sm font-extrabold" style={{ color: "#3a2010" }}>
-            세션 토큰
-          </p>
-        </div>
-
-        <UsageRow
-          label="현재 세션"
-          subLabel={getSessionResetLabel()}
-          tokens={currentSessionTokens}
-          limit={null}
-          animDelay={300}
-          showPercentage={false}
-        />
+            ⚠️ {usageError}
+          </div>
+        ) : null}
       </div>
 
-      {/* Footer: last updated */}
+      {/* Footer */}
       <div
-        className="flex items-center gap-1.5 mt-5 pt-4"
-        style={{ borderTop: "1px solid #ede4d8" }}
+        className="flex items-center gap-1.5 mt-4 pt-3"
+        style={{ borderTop: "1px solid #ecdccc" }}
       >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#c4a894"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <Button
+          onClick={() => void onRefreshUsage()}
+          disabled={usageLoading}
+          variant="ghost"
+          size="icon-xs"
+          className="rounded-full"
+          title="새로고침"
         >
-          <path d="M23 4v6h-6" />
-          <path d="M1 20v-6h6" />
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-        </svg>
-        <span className="text-[10px] font-medium" style={{ color: "#c4a894" }}>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#c0a090"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ display: "block" }}
+          >
+            <path d="M23 4v6h-6" />
+            <path d="M1 20v-6h6" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </Button>
+        <span className="text-[10px] font-semibold" style={{ color: "#c0a090" }}>
           마지막 업데이트: {lastUpdated}
         </span>
       </div>
