@@ -1,222 +1,323 @@
-import { useState, useMemo } from 'react'
-
-export interface DayData {
-  date: string
-  tokens: number
-  inputTokens: number
-  outputTokens: number
-  sessions: number
-}
+import { useState, useMemo, useRef, useEffect } from "react";
+import type { DayData } from "../../../preload/index.d";
+import { formatTokens } from "../lib/formatters";
 
 interface TooltipState {
-  visible: boolean
-  x: number
-  y: number
-  data: DayData | null
+  visible: boolean;
+  x: number;
+  y: number;
+  data: DayData | null;
+  isFuture: boolean;
 }
 
+// Heatmap usage colors: white → pale orange → deep orange (more tokens)
 const INTENSITY_COLORS = [
-  '#161b22', // level 0 - no usage
-  '#7c2d12', // level 1 - low
-  '#c2410c', // level 2 - medium-low
-  '#ea580c', // level 3 - medium-high
-  '#fb923c', // level 4 - high
-  '#fed7aa', // level 5 - very high
-]
+  "#ffffff", // level 0 - no usage
+  "#fff0e0", // level 1 - low (very light orange)
+  "#ffc999", // level 2 - medium-light
+  "#ff9f4a", // level 3 - medium-strong
+  "#e85d04", // level 4 - deep orange
+];
+
+const EMPTY_CELL_BORDER = "#ecdccc";
 
 function getIntensityLevel(tokens: number, maxTokens: number): number {
-  if (tokens === 0) return 0
-  const ratio = tokens / maxTokens
-  if (ratio < 0.15) return 1
-  if (ratio < 0.35) return 2
-  if (ratio < 0.6) return 3
-  if (ratio < 0.85) return 4
-  return 5
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
-  return n.toString()
+  if (tokens === 0) return 0;
+  const ratio = tokens / maxTokens;
+  if (ratio < 0.2) return 1;
+  if (ratio < 0.45) return 2;
+  if (ratio < 0.75) return 3;
+  return 4;
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
 }
 
 interface Props {
-  data: DayData[]
+  data: DayData[];
+  today: string;
 }
 
-export default function TokenHeatmap({ data }: Props) {
+export default function TokenHeatmap({ data, today }: Props) {
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
     x: 0,
     y: 0,
     data: null,
-  })
+    isFuture: false,
+  });
 
-  const maxTokens = useMemo(() => Math.max(...data.map((d) => d.tokens), 1), [data])
+  const containerRef = useRef<HTMLDivElement>(null);
+  const todayCellRef = useRef<HTMLDivElement>(null);
 
-  // Build weeks grid: each column = 1 week (Sun→Sat)
+  // Scroll today into view on mount
+  useEffect(() => {
+    if (todayCellRef.current && containerRef.current) {
+      const cell = todayCellRef.current;
+      const container = containerRef.current;
+      const cellLeft = cell.offsetLeft;
+      const containerWidth = container.clientWidth;
+      container.scrollLeft = cellLeft - containerWidth / 2;
+    }
+  }, [data]);
+
+  // Only consider past + today for the intensity scale
+  const maxTokens = useMemo(
+    () => Math.max(...data.filter((d) => d.date <= today).map((d) => d.tokens), 1),
+    [data, today],
+  );
+
+  // Build weeks grid
   const weeks = useMemo(() => {
-    const result: (DayData | null)[][] = []
-    // Find the starting Sunday
-    const firstDate = new Date(data[0].date + 'T00:00:00')
-    const startDow = firstDate.getDay() // 0=Sun
-    // Pad beginning with nulls
-    let current: (DayData | null)[] = Array(startDow).fill(null)
+    if (data.length === 0) return [];
+    const result: (DayData | null)[][] = [];
+    const firstDate = new Date(data[0].date + "T00:00:00");
+    const startDow = firstDate.getDay();
+    let current: (DayData | null)[] = Array(startDow).fill(null);
 
     for (const day of data) {
-      current.push(day)
+      current.push(day);
       if (current.length === 7) {
-        result.push(current)
-        current = []
+        result.push(current);
+        current = [];
       }
     }
     if (current.length > 0) {
-      while (current.length < 7) current.push(null)
-      result.push(current)
+      while (current.length < 7) current.push(null);
+      result.push(current);
     }
-    return result
-  }, [data])
+    return result;
+  }, [data]);
 
   // Month labels
   const monthLabels = useMemo(() => {
-    const labels: { label: string; weekIndex: number }[] = []
-    let lastMonth = -1
+    const labels: { label: string; weekIndex: number }[] = [];
+    let lastMonth = -1;
     weeks.forEach((week, wi) => {
-      const firstReal = week.find((d) => d !== null)
-      if (!firstReal) return
-      const m = new Date(firstReal.date + 'T00:00:00').getMonth()
+      const firstReal = week.find((d) => d !== null);
+      if (!firstReal) return;
+      const m = new Date(firstReal.date + "T00:00:00").getMonth();
       if (m !== lastMonth) {
         labels.push({
-          label: new Date(firstReal.date + 'T00:00:00').toLocaleDateString('ko-KR', { month: 'short' }),
+          label: new Date(firstReal.date + "T00:00:00").toLocaleDateString("ko-KR", {
+            month: "short",
+          }),
           weekIndex: wi,
-        })
-        lastMonth = m
+        });
+        lastMonth = m;
       }
-    })
-    return labels
-  }, [weeks])
+    });
+    return labels;
+  }, [weeks]);
 
-  const DAY_LABELS = ['일', '', '화', '', '목', '', '토']
-  const CELL = 13
-  const GAP = 2
+  const DAY_LABELS = ["일", "", "화", "", "목", "", "토"];
+  const CELL = 13;
+  const GAP = 2;
 
   return (
     <div className="relative select-none">
       {/* Month labels */}
-      <div className="flex mb-1 ml-8">
+      <div className="flex mb-1 ml-8 overflow-hidden">
         {weeks.map((_, wi) => {
-          const found = monthLabels.find((m) => m.weekIndex === wi)
+          const found = monthLabels.find((m) => m.weekIndex === wi);
           return (
             <div
               key={wi}
-              style={{ width: CELL + GAP, flexShrink: 0 }}
-              className="text-xs text-gray-500 overflow-hidden whitespace-nowrap"
+              style={{ width: CELL + GAP, flexShrink: 0, fontSize: 10 }}
+              className="text-gray-500 overflow-hidden whitespace-nowrap"
             >
-              {found ? found.label : ''}
+              {found ? found.label : ""}
             </div>
-          )
+          );
         })}
       </div>
 
-      <div className="flex gap-0">
-        {/* Day labels */}
-        <div className="flex flex-col mr-1" style={{ gap: GAP }}>
-          {DAY_LABELS.map((label, i) => (
-            <div
-              key={i}
-              style={{ width: 24, height: CELL, fontSize: 10 }}
-              className="text-gray-500 flex items-center justify-end pr-1"
-            >
-              {label}
-            </div>
-          ))}
-        </div>
+      {/* Scrollable heatmap wrapper */}
+      <div ref={containerRef} className="overflow-x-auto pb-2">
+        <div className="flex gap-0" style={{ width: "max-content" }}>
+          {/* Day labels */}
+          <div className="flex flex-col mr-1" style={{ gap: GAP }}>
+            {DAY_LABELS.map((label, i) => (
+              <div
+                key={i}
+                style={{ width: 24, height: CELL, fontSize: 10 }}
+                className="text-gray-500 flex items-center justify-end pr-1 shrink-0"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
 
-        {/* Heatmap grid */}
-        <div className="flex" style={{ gap: GAP }}>
-          {weeks.map((week, wi) => (
-            <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
-              {week.map((day, di) => (
-                <div
-                  key={di}
-                  style={{
-                    width: CELL,
-                    height: CELL,
-                    borderRadius: 2,
-                    backgroundColor: day
-                      ? INTENSITY_COLORS[getIntensityLevel(day.tokens, maxTokens)]
-                      : 'transparent',
-                    cursor: day ? 'pointer' : 'default',
-                    transition: 'transform 0.1s',
-                  }}
-                  className={day ? 'hover:scale-125 hover:z-10' : ''}
-                  onMouseEnter={(e) => {
-                    if (!day) return
-                    const rect = (e.target as HTMLElement).getBoundingClientRect()
-                    setTooltip({
-                      visible: true,
-                      x: rect.left + rect.width / 2,
-                      y: rect.top - 8,
-                      data: day,
-                    })
-                  }}
-                  onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
-                />
-              ))}
-            </div>
-          ))}
+          {/* Heatmap grid */}
+          <div className="flex" style={{ gap: GAP }}>
+            {weeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
+                {week.map((day, di) => {
+                  if (day === null) {
+                    return <div key={di} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
+                  }
+
+                  const isFuture = day.date > today;
+                  const level = getIntensityLevel(day.tokens, maxTokens);
+
+                  // ── Future cell (시각은 사용량 0인 날과 동일, 툴팁만 예정) ──
+                  if (isFuture) {
+                    return (
+                      <div
+                        key={di}
+                        style={{
+                          width: CELL,
+                          height: CELL,
+                          borderRadius: 2,
+                          backgroundColor: INTENSITY_COLORS[0],
+                          border: `1px solid ${EMPTY_CELL_BORDER}`,
+                          boxSizing: "border-box",
+                          flexShrink: 0,
+                          cursor: "pointer",
+                          transition: "transform 0.1s",
+                        }}
+                        className="hover:scale-125 hover:z-10"
+                        onMouseEnter={(e) => {
+                          const rect = (e.target as HTMLElement).getBoundingClientRect();
+                          setTooltip({
+                            visible: true,
+                            x: rect.left + rect.width / 2,
+                            y: rect.top - 8,
+                            data: day,
+                            isFuture: true,
+                          });
+                        }}
+                        onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+                      />
+                    );
+                  }
+
+                  // ── 과거·오늘: 사용량 강도 색만 (오늘 전용 스타일 없음) ──
+                  const bg = INTENSITY_COLORS[level];
+                  const isEmpty = level === 0;
+                  return (
+                    <div
+                      key={di}
+                      ref={day.date === today ? todayCellRef : undefined}
+                      style={{
+                        width: CELL,
+                        height: CELL,
+                        borderRadius: 2,
+                        backgroundColor: bg,
+                        border: isEmpty
+                          ? `1px solid ${EMPTY_CELL_BORDER}`
+                          : "1px solid transparent",
+                        boxSizing: "border-box",
+                        flexShrink: 0,
+                        cursor: "pointer",
+                        transition: "transform 0.1s",
+                      }}
+                      className="hover:scale-125 hover:z-10"
+                      onMouseEnter={(e) => {
+                        const rect = (e.target as HTMLElement).getBoundingClientRect();
+                        setTooltip({
+                          visible: true,
+                          x: rect.left + rect.width / 2,
+                          y: rect.top - 8,
+                          data: day,
+                          isFuture: false,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-1 mt-3 ml-8">
-        <span className="text-xs text-gray-500 mr-1">적음</span>
+      <div className="flex items-center gap-2 mt-3 ml-8 flex-wrap">
+        <span style={{ fontSize: 10, color: "#9a8070" }}>적음</span>
         {INTENSITY_COLORS.map((color, i) => (
           <div
             key={i}
-            style={{ width: CELL, height: CELL, borderRadius: 2, backgroundColor: color }}
+            style={{
+              width: CELL,
+              height: CELL,
+              borderRadius: 2,
+              backgroundColor: color,
+              border: i === 0 ? `1px solid ${EMPTY_CELL_BORDER}` : "1px solid transparent",
+              boxSizing: "border-box",
+            }}
           />
         ))}
-        <span className="text-xs text-gray-500 ml-1">많음</span>
+        <span style={{ fontSize: 10, color: "#9a8070" }}>많음</span>
       </div>
 
       {/* Tooltip */}
       {tooltip.visible && tooltip.data && (
         <div
           className="fixed z-50 pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y, transform: 'translate(-50%, -100%)' }}
+          style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
         >
           <div
             className="rounded-lg px-3 py-2 text-xs shadow-xl border"
-            style={{ backgroundColor: '#1c1917', borderColor: '#44403c', minWidth: 180 }}
+            style={{
+              backgroundColor: "#1c1917",
+              borderColor: "#44403c",
+              minWidth: tooltip.isFuture ? 140 : 180,
+            }}
           >
-            <div className="font-semibold text-orange-300 mb-1">{formatDate(tooltip.data.date)}</div>
-            <div className="text-gray-300 space-y-0.5">
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">총 토큰</span>
-                <span className="font-mono text-orange-200">{formatTokens(tooltip.data.tokens)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">입력</span>
-                <span className="font-mono">{formatTokens(tooltip.data.inputTokens)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">출력</span>
-                <span className="font-mono">{formatTokens(tooltip.data.outputTokens)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">세션</span>
-                <span className="font-mono">{tooltip.data.sessions}회</span>
-              </div>
+            <div
+              className="font-semibold mb-1"
+              style={{ color: tooltip.isFuture ? "#9ca3af" : "#fdba74" }}
+            >
+              {formatDate(tooltip.data.date)}
+              {tooltip.isFuture && (
+                <span
+                  className="ml-2 text-[9px] px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(244,160,85,0.15)",
+                    color: "#fb923c",
+                    border: "1px dashed rgba(251,146,60,0.3)",
+                  }}
+                >
+                  예정
+                </span>
+              )}
             </div>
+            {tooltip.isFuture ? (
+              <div style={{ color: "#6b7280", fontSize: 10 }}>아직 사용 내역이 없습니다</div>
+            ) : (
+              <div className="space-y-0.5" style={{ color: "#d1d5db" }}>
+                <div className="flex justify-between gap-4">
+                  <span style={{ color: "#9ca3af" }}>총 토큰</span>
+                  <span className="font-mono" style={{ color: "#fed7aa" }}>
+                    {formatTokens(tooltip.data.tokens)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span style={{ color: "#9ca3af" }}>입력</span>
+                  <span className="font-mono">{formatTokens(tooltip.data.inputTokens)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span style={{ color: "#9ca3af" }}>출력</span>
+                  <span className="font-mono">{formatTokens(tooltip.data.outputTokens)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span style={{ color: "#9ca3af" }}>세션</span>
+                  <span className="font-mono">{tooltip.data.sessions}회</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
