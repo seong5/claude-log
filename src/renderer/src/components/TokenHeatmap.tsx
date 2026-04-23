@@ -10,13 +10,13 @@ interface TooltipState {
   isFuture: boolean;
 }
 
-// Heatmap usage colors (Less -> More) matched to provided reference
+// Heatmap usage colors: white → pale orange → deep orange (more tokens)
 const INTENSITY_COLORS = [
-  "#ffffff",  // level 0 - no usage
-  "#5a453c",  // level 1 - low
-  "#8f5a4a",  // level 2 - medium
-  "#c16f57",  // level 3 - high
-  "#f7a24f",  // level 4 - very high (brighter orange)
+  "#ffffff", // level 0 - no usage
+  "#fff0e0", // level 1 - low (very light orange)
+  "#ffc999", // level 2 - medium-light
+  "#ff9f4a", // level 3 - medium-strong
+  "#e85d04", // level 4 - deep orange
 ];
 
 const EMPTY_CELL_BORDER = "#ecdccc";
@@ -71,7 +71,7 @@ export default function TokenHeatmap({ data, today }: Props) {
   // Only consider past + today for the intensity scale
   const maxTokens = useMemo(
     () => Math.max(...data.filter((d) => d.date <= today).map((d) => d.tokens), 1),
-    [data, today]
+    [data, today],
   );
 
   // Build weeks grid
@@ -161,12 +161,7 @@ export default function TokenHeatmap({ data, today }: Props) {
               <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
                 {week.map((day, di) => {
                   if (day === null) {
-                    return (
-                      <div
-                        key={di}
-                        style={{ width: CELL, height: CELL, flexShrink: 0 }}
-                      />
-                    );
+                    return <div key={di} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
                   }
 
                   const isFuture = day.date > today;
@@ -278,12 +273,19 @@ export default function TokenHeatmap({ data, today }: Props) {
               minWidth: tooltip.isFuture ? 140 : 180,
             }}
           >
-            <div className="font-semibold mb-1" style={{ color: tooltip.isFuture ? "#9ca3af" : "#fdba74" }}>
+            <div
+              className="font-semibold mb-1"
+              style={{ color: tooltip.isFuture ? "#9ca3af" : "#fdba74" }}
+            >
               {formatDate(tooltip.data.date)}
               {tooltip.isFuture && (
                 <span
                   className="ml-2 text-[9px] px-1.5 py-0.5 rounded-full"
-                  style={{ background: "rgba(244,160,85,0.15)", color: "#fb923c", border: "1px dashed rgba(251,146,60,0.3)" }}
+                  style={{
+                    background: "rgba(244,160,85,0.15)",
+                    color: "#fb923c",
+                    border: "1px dashed rgba(251,146,60,0.3)",
+                  }}
                 >
                   예정
                 </span>
