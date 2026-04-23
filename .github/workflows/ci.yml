@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
@@ -61,10 +61,6 @@ jobs:
   test-electron:
     name: Electron Integration Tests (macOS)
     runs-on: macos-latest
-    if: |
-      github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/develop' ||
-      (github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'develop'))
     steps:
       - uses: actions/checkout@v4
 
