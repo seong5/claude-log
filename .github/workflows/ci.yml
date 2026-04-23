@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ['**']
+    branches: ["**"]
   pull_request:
     branches: [main, develop]
 
@@ -23,8 +23,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -48,7 +48,7 @@ jobs:
       - name: Run renderer tests
         run: pnpm test:renderer
         env:
-          CI: 'true'
+          CI: "true"
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
@@ -74,8 +74,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -98,7 +98,7 @@ jobs:
       - name: Run Electron integration tests
         run: pnpm test:electron
         env:
-          CI: 'true'
+          CI: "true"
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
