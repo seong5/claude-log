@@ -367,8 +367,8 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
   );
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Anthropic Admin API 오류 (${response.status}): ${body}`);
+    console.error(`[Admin API] 오류 (${response.status}):`, await response.text());
+    throw new Error(`Anthropic Admin API 오류 (${response.status})`);
   }
 
   const payload = (await response.json()) as UsageReportResponse;
@@ -409,8 +409,8 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
     },
   );
   if (!currentResponse.ok) {
-    const body = await currentResponse.text();
-    throw new Error(`Anthropic Admin API 오류 (${currentResponse.status}): ${body}`);
+    console.error(`[Admin API] 오류 (${currentResponse.status}):`, await currentResponse.text());
+    throw new Error(`Anthropic Admin API 오류 (${currentResponse.status})`);
   }
   const currentPayload = (await currentResponse.json()) as UsageReportResponse;
   let currentSessionTokens = 0;

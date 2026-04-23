@@ -87,8 +87,13 @@ export default function App(): React.JSX.Element {
                 const parent = target.parentElement;
                 if (parent) {
                   parent.style.background = "linear-gradient(135deg, #f4a055, #d9622a)";
-                  parent.innerHTML =
-                    '<span style="font-size:14px; font-weight:700; color:#fff">CL</span>';
+                  parent.textContent = "";
+                  const span = document.createElement("span");
+                  span.textContent = "CL";
+                  span.style.fontSize = "14px";
+                  span.style.fontWeight = "700";
+                  span.style.color = "#fff";
+                  parent.appendChild(span);
                 }
               }}
             />
