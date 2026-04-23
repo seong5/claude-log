@@ -119,6 +119,16 @@ function createTray(): void {
   });
 }
 
+/** Only http(s) — blocks file:, custom schemes, javascript:, etc. for openExternal. */
+function isAllowedOpenExternalUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function createPopupWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 480,
@@ -130,12 +140,15 @@ function createPopupWindow(): BrowserWindow {
     skipTaskbar: true,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
-      sandbox: false,
+      sandbox: true,
+      contextIsolation: true,
     },
   });
 
   win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    if (isAllowedOpenExternalUrl(details.url)) {
+      void shell.openExternal(details.url);
+    }
     return { action: "deny" };
   });
 

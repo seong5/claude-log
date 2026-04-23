@@ -16,16 +16,9 @@ const claudeLogAPI = {
   },
 }
 
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('claudeLog', claudeLogAPI)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore
-  window.electron = electronAPI
-  // @ts-ignore
-  window.claudeLog = claudeLogAPI
+try {
+  contextBridge.exposeInMainWorld('electron', electronAPI)
+  contextBridge.exposeInMainWorld('claudeLog', claudeLogAPI)
+} catch (error) {
+  console.error(error)
 }

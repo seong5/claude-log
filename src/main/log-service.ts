@@ -15,6 +15,16 @@ import {
   ParsedEntry,
 } from './jsonl-parser'
 
+/** Reject `..`, absolute paths, and anything that resolves outside `rootDir`. */
+function resolvePathUnderRoot(rootDir: string, relativeFromWatch: string): string | null {
+  const root = path.resolve(rootDir)
+  const candidate = path.resolve(root, relativeFromWatch)
+  if (candidate === root) return null
+  const prefix = root.endsWith(path.sep) ? root : root + path.sep
+  if (!candidate.startsWith(prefix)) return null
+  return candidate
+}
+
 interface WatchedFile {
   offset: number
   watcher: fs.FSWatcher | null
@@ -159,8 +169,8 @@ class LogService {
     try {
       this.dirWatcher = fs.watch(projectsDir, { recursive: true }, (_event, filename) => {
         if (!filename || !filename.endsWith('.jsonl')) return
-        const filePath = path.join(projectsDir, filename)
-        if (this.fileState.has(filePath)) return
+        const filePath = resolvePathUnderRoot(projectsDir, filename)
+        if (!filePath || this.fileState.has(filePath)) return
 
         const { entries, newOffset } = parseJSONLFrom(filePath, 0)
         this.fileState.set(filePath, { offset: newOffset, watcher: null })
