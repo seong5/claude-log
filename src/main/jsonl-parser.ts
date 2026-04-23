@@ -20,6 +20,7 @@ export interface DayData {
 }
 
 export function getClaudeProjectsDir(): string {
+  if (process.env['CLAUDE_DATA_DIR']) return process.env['CLAUDE_DATA_DIR']
   return path.join(os.homedir(), '.claude', 'projects')
 }
 

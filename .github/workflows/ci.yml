@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-renderer:
+    name: Renderer Tests (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-pw
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: playwright-chromium-
+
+      - name: Install Playwright browsers
+        if: steps.cache-pw.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cache hit)
+        if: steps.cache-pw.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Run renderer tests
+        run: pnpm test:renderer
+        env:
+          CI: 'true'
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-renderer
+          path: playwright-report/
+          retention-days: 14
+
+  test-electron:
+    name: Electron Integration Tests (macOS)
+    runs-on: macos-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'pull_request' && github.base_ref == 'main')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Electron app
+        run: pnpm build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-pw
+        with:
+          path: ~/Library/Caches/ms-playwright
+          key: playwright-macos-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: playwright-macos-chromium-
+
+      - name: Install Playwright browsers
+        if: steps.cache-pw.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Electron integration tests
+        run: pnpm test:electron
+        env:
+          CI: 'true'
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-electron
+          path: playwright-report/
+          retention-days: 14
