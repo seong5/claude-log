@@ -57,6 +57,12 @@
     "files": [
       "out/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "build/tray-icon.png",
+        "to": "tray-icon.png"
+      }
+    ],
     "mac": {
       "target": "dmg",
       "category": "public.app-category.productivity",
