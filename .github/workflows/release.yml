@@ -24,10 +24,10 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build macOS DMG
-        run: npm run build:mac
+        run: pnpm run build:mac
 
       - uses: actions/upload-artifact@v4
         with:
@@ -49,10 +49,10 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Windows installer
-        run: npm run build:win
+        run: pnpm run build:win
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,10 +74,10 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Linux AppImage
-        run: npm run build:linux
+        run: pnpm run build:linux
 
       - uses: actions/upload-artifact@v4
         with:
