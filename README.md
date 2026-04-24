@@ -92,15 +92,15 @@ Claude Code에 로그인된 상태라면 `~/.claude/.credentials.json`에서 자
 pnpm install
 
 # 개발 모드
-npm run dev
+pnpm run dev
 
 # 프로덕션 빌드
-npm run build:mac    # macOS DMG
-npm run build:win    # Windows NSIS 설치 파일
-npm run build:linux  # Linux AppImage
+pnpm run build:mac    # macOS DMG
+pnpm run build:win    # Windows NSIS 설치 파일
+pnpm run build:linux  # Linux AppImage
 
 # 테스트
-npm run test
+pnpm run test
 ```
 
 ---
