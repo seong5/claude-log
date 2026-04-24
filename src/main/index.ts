@@ -95,7 +95,9 @@ async function refreshTrayUsageTitle(): Promise<void> {
 }
 
 function createTray(): void {
-  const iconPath = join(__dirname, "../../build/tray-icon.png");
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, "tray-icon.png")
+    : join(__dirname, "../../build/tray-icon.png");
   const icon = nativeImage.createFromPath(iconPath).resize({ width: 20, height: 20 });
   icon.setTemplateImage(false);
 
