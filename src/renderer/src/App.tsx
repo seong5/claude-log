@@ -33,6 +33,8 @@ export default function App(): React.JSX.Element {
     };
   }, [fetchOAuthUsage, init]);
 
+  const [logoError, setLogoError] = useState(false);
+
   const [today, setToday] = useState(() => formatLocalYmd(new Date()));
 
   useEffect(() => {
@@ -75,28 +77,21 @@ export default function App(): React.JSX.Element {
         <div className="flex items-center gap-3">
           <div
             className="w-15 h-15 rounded-xl flex items-center justify-center overflow-hidden"
-            style={{ boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)" }}
+            style={{
+              boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)",
+              ...(logoError && { background: "linear-gradient(135deg, #f4a055, #d9622a)" }),
+            }}
           >
-            <img
-              src={mainLogo}
-              alt="Claude Log"
-              className="block w-[100%] h-[100%] object-cover"
-              onError={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                target.style.display = "none";
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.style.background = "linear-gradient(135deg, #f4a055, #d9622a)";
-                  parent.textContent = "";
-                  const span = document.createElement("span");
-                  span.textContent = "CL";
-                  span.style.fontSize = "14px";
-                  span.style.fontWeight = "700";
-                  span.style.color = "#fff";
-                  parent.appendChild(span);
-                }
-              }}
-            />
+            {logoError ? (
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>CL</span>
+            ) : (
+              <img
+                src={mainLogo}
+                alt="Claude Log"
+                className="block w-[100%] h-[100%] object-cover"
+                onError={() => setLogoError(true)}
+              />
+            )}
           </div>
           <span
             className="font-bold text-sm"

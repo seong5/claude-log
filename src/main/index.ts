@@ -222,9 +222,7 @@ function readEnvFromFile(key: string): string | null {
 function getAdminApiKey(): string | null {
   return (
     process.env["ANTHROPIC_ADMIN_API_KEY"] ??
-    process.env["ANTROPIC_ADMIN_API_KEY"] ??
-    readEnvFromFile("ANTHROPIC_ADMIN_API_KEY") ??
-    readEnvFromFile("ANTROPIC_ADMIN_API_KEY")
+    readEnvFromFile("ANTHROPIC_ADMIN_API_KEY")
   );
 }
 

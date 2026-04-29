@@ -33,12 +33,16 @@ export const useLogStore = create<LogState>((set) => {
       set({ days, loading: false, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
 
       _unsubscribe = window.claudeLog.onUpdate(async (updated) => {
-        const [currentSession, recentFiveHourTokens, oldestRecentEntryTime] = await Promise.all([
-          window.claudeLog.getCurrentSession(),
-          window.claudeLog.getRecentFiveHourTokens(),
-          window.claudeLog.getOldestRecentEntryTime(),
-        ])
-        set({ days: updated, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
+        try {
+          const [currentSession, recentFiveHourTokens, oldestRecentEntryTime] = await Promise.all([
+            window.claudeLog.getCurrentSession(),
+            window.claudeLog.getRecentFiveHourTokens(),
+            window.claudeLog.getOldestRecentEntryTime(),
+          ])
+          set({ days: updated, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
+        } catch (err) {
+          console.error('[useLogStore] onUpdate IPC 실패:', err)
+        }
       })
     },
 
