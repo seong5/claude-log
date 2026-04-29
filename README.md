@@ -105,6 +105,26 @@ pnpm run test
 
 ---
 
+## macOS 실행 문제 해결
+
+Apple Developer ID 서명/노타라이즈가 없는 빌드는 Gatekeeper 때문에 실행이 차단될 수 있습니다.
+
+먼저 아래 순서로 시도하세요.
+
+1. 앱을 한 번 실행해 차단 메시지를 확인
+2. **시스템 설정 → 개인 정보 보호 및 보안 → 그래도 열기** 클릭
+
+여전히 열리지 않으면(고급 사용자) quarantine 속성을 제거할 수 있습니다.
+
+```bash
+xattr -cr "/Applications/Claude Log.app"
+```
+
+> 이 방법은 보안 우회에 해당하므로, 신뢰하는 빌드에서만 사용하세요.
+
+
+---
+
 ## 알려진 제한사항
 
 - macOS 전용 (Windows / Linux 빌드는 실험적)
