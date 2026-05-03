@@ -11,7 +11,8 @@ test.describe('TokenHeatmap', () => {
   test('renders heatmap year range subtitle', async ({ page }) => {
     await injectClaudeLogMock(page)
     await page.goto('/')
-    await expect(page.getByText('2026년 1월 ~ 6월 토큰 사용 기록')).toBeVisible()
+    const year = new Date().getFullYear()
+    await expect(page.getByText(`${year}년 1월 ~ 12월 토큰 사용 기록`)).toBeVisible()
   })
 
   test('renders active days badge with 일 활성 text', async ({ page }) => {
@@ -59,13 +60,14 @@ test.describe('TokenHeatmap', () => {
     }
   })
 
-  test('renders month labels for Jan through Jun', async ({ page }) => {
+  test('renders month labels (1월, 3월)', async ({ page }) => {
     const days = [
       makeDayData({ date: '2026-01-15', tokens: 10_000 }),
       makeDayData({ date: '2026-03-10', tokens: 20_000 }),
     ]
     await injectClaudeLogMock(page, { days })
     await page.goto('/')
-    await expect(page.getByText('1월').first()).toBeVisible()
+    await expect(page.getByTitle('2026년 1월')).toContainText('1월')
+    await expect(page.getByTitle('2026년 3월')).toContainText('3월')
   })
 })

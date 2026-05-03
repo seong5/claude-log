@@ -2,8 +2,13 @@ import { useMemo } from 'react'
 import type { DayData } from '../../../preload/index.d'
 import { formatLocalYmd } from '../lib/formatters'
 
-const HEATMAP_START = new Date('2026-01-01T00:00:00')
-const HEATMAP_END = new Date(2026, 6, 0)
+function getHeatmapRange(): { start: Date; end: Date } {
+  const now = new Date()
+  const year = now.getFullYear()
+  const start = new Date(year, 0, 1)       // 올해 1월 1일
+  const end = new Date(year, 11, 31)        // 올해 12월 31일
+  return { start, end }
+}
 
 const EMPTY_DAY = (date: string): DayData => ({
   date,
@@ -17,10 +22,11 @@ const EMPTY_DAY = (date: string): DayData => ({
 export function useHeatmapData(allDays: DayData[], today: string) {
   const heatmapData = useMemo<DayData[]>(() => {
     if (allDays.length === 0) return []
+    const { start, end } = getHeatmapRange()
     const dataMap = new Map(allDays.map((d) => [d.date, d]))
     const result: DayData[] = []
-    const cur = new Date(HEATMAP_START)
-    while (cur <= HEATMAP_END) {
+    const cur = new Date(start)
+    while (cur <= end) {
       const ds = formatLocalYmd(cur)
       result.push(dataMap.get(ds) ?? EMPTY_DAY(ds))
       cur.setDate(cur.getDate() + 1)

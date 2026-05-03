@@ -15,10 +15,11 @@ import mainLogo from "../../../build/main-logo.png";
 
 export default function App(): React.JSX.Element {
   const init = useLogStore((s) => s.init);
-  const { days: allDays, loading } = useLogStore(
+  const { days: allDays, loading, error } = useLogStore(
     useShallow((s) => ({
       days: s.days,
       loading: s.loading,
+      error: s.error,
     })),
   );
 
@@ -32,6 +33,8 @@ export default function App(): React.JSX.Element {
       useLogStore.getState().destroy();
     };
   }, [fetchOAuthUsage, init]);
+
+  const [logoError, setLogoError] = useState(false);
 
   const [today, setToday] = useState(() => formatLocalYmd(new Date()));
 
@@ -75,28 +78,21 @@ export default function App(): React.JSX.Element {
         <div className="flex items-center gap-3">
           <div
             className="w-15 h-15 rounded-xl flex items-center justify-center overflow-hidden"
-            style={{ boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)" }}
+            style={{
+              boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)",
+              ...(logoError && { background: "linear-gradient(135deg, #f4a055, #d9622a)" }),
+            }}
           >
-            <img
-              src={mainLogo}
-              alt="Claude Log"
-              className="block w-[100%] h-[100%] object-cover"
-              onError={(e) => {
-                const target = e.currentTarget as HTMLImageElement;
-                target.style.display = "none";
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.style.background = "linear-gradient(135deg, #f4a055, #d9622a)";
-                  parent.textContent = "";
-                  const span = document.createElement("span");
-                  span.textContent = "CL";
-                  span.style.fontSize = "14px";
-                  span.style.fontWeight = "700";
-                  span.style.color = "#fff";
-                  parent.appendChild(span);
-                }
-              }}
-            />
+            {logoError ? (
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>CL</span>
+            ) : (
+              <img
+                src={mainLogo}
+                alt="Claude Log"
+                className="block w-[100%] h-[100%] object-cover"
+                onError={() => setLogoError(true)}
+              />
+            )}
           </div>
           <span
             className="font-bold text-sm"
@@ -172,14 +168,30 @@ export default function App(): React.JSX.Element {
           </Card>
         </div>
 
-        {loading ? (
+        {error ? (
           <div
-            className="rounded-3xl p-12 flex items-center justify-center"
+            className="rounded-3xl p-12 flex flex-col items-center justify-center gap-2"
             style={{
               backgroundColor: "#fffcf8",
               border: "1px solid #ecdccc",
             }}
           >
+            <p className="text-sm font-semibold" style={{ color: "#c05040" }}>
+              {error}
+            </p>
+          </div>
+        ) : loading ? (
+          <div
+            className="rounded-3xl p-12 flex flex-col items-center justify-center gap-3"
+            style={{
+              backgroundColor: "#fffcf8",
+              border: "1px solid #ecdccc",
+            }}
+          >
+            <div
+              className="w-6 h-6 rounded-full border-2 animate-spin"
+              style={{ borderColor: "#ecdccc", borderTopColor: "#d9622a" }}
+            />
             <p className="text-sm font-semibold" style={{ color: "#c0a090" }}>
               JSONL 파일 파싱 중…
             </p>
@@ -203,7 +215,7 @@ export default function App(): React.JSX.Element {
                       🗓 활동 히트맵
                     </h2>
                     <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
-                      2026년 1월 ~ 6월 토큰 사용 기록
+                      {new Date().getFullYear()}년 1월 ~ 12월 토큰 사용 기록
                     </p>
                   </div>
                   <Badge variant="warm" className="gap-1.5 px-3 py-1.5 text-xs font-semibold">
