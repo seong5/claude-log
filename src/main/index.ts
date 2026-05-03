@@ -473,10 +473,8 @@ app.whenReady().then(() => {
   ipcMain.handle("claude-log:get-admin-week-usage", async () => fetchAdminWeekUsage());
   ipcMain.handle("claude-log:get-oauth-usage", async () => {
     const now = Date.now();
-    if (now - lastOAuthIpcAt < OAUTH_IPC_MIN_INTERVAL_MS) {
-      if (lastOAuthUsageResult) return lastOAuthUsageResult;
-      if (oauthUsageInFlight) return oauthUsageInFlight;
-      throw new Error("요청이 너무 빠릅니다. 잠시 후 다시 시도하세요.");
+    if (now - lastOAuthIpcAt < OAUTH_IPC_MIN_INTERVAL_MS && lastOAuthUsageResult) {
+      return lastOAuthUsageResult;
     }
     lastOAuthIpcAt = now;
     return fetchOAuthUsage();

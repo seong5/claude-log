@@ -13,6 +13,7 @@ interface LogState {
 
 export const useLogStore = create<LogState>((set) => {
   let _unsubscribe: (() => void) | null = null
+  let _currentInitId = 0
 
   return {
     days: [],
@@ -23,6 +24,8 @@ export const useLogStore = create<LogState>((set) => {
 
     init: async () => {
       _unsubscribe?.()
+      _unsubscribe = null
+      const initId = ++_currentInitId
 
       const [days, currentSession, recentFiveHourTokens, oldestRecentEntryTime] = await Promise.all([
         window.claudeLog.getDays(),
@@ -30,6 +33,9 @@ export const useLogStore = create<LogState>((set) => {
         window.claudeLog.getRecentFiveHourTokens(),
         window.claudeLog.getOldestRecentEntryTime(),
       ])
+
+      if (initId !== _currentInitId) return
+
       set({ days, loading: false, currentSession, recentFiveHourTokens, oldestRecentEntryTime })
 
       _unsubscribe = window.claudeLog.onUpdate(async (updated) => {
