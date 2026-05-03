@@ -141,3 +141,13 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local tooling / agent data (not shared)
+shrimp_data/
+.claude/
+.mcp.json
+
+# Planning / agent docs (not shared)
+CLAUDE.md
+ROADMAP.md
+PRD.md
