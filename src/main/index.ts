@@ -2,9 +2,12 @@ import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, screen, Menu } f
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "path";
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { logService } from "./log-service";
+
+const execFileAsync = promisify(execFile);
 
 let tray: Tray | null = null;
 let popupWindow: BrowserWindow | null = null;
@@ -226,7 +229,7 @@ function getAdminApiKey(): string | null {
   );
 }
 
-function getOAuthAccessToken(): string | null {
+async function getOAuthAccessToken(): Promise<string | null> {
   const envToken =
     process.env["ANTHROPIC_OAUTH_ACCESS_TOKEN"] ?? readEnvFromFile("ANTHROPIC_OAUTH_ACCESS_TOKEN");
   if (envToken) return envToken;
@@ -246,12 +249,14 @@ function getOAuthAccessToken(): string | null {
   // macOS Keychain fallback (Claude Code stores credentials here)
   if (process.platform === "darwin") {
     try {
-      const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
-      const parsed = JSON.parse(raw) as { claudeAiOauth?: { accessToken?: string } };
-      return parsed.claudeAiOauth?.accessToken ?? null;
+      const { stdout } = await execFileAsync("security", [
+        "find-generic-password",
+        "-s",
+        "Claude Code-credentials",
+        "-w",
+      ]);
+      const token = JSON.parse(stdout.trim())?.claudeAiOauth?.accessToken;
+      if (typeof token === "string" && token.length > 0) return token;
     } catch {
       return null;
     }
@@ -272,7 +277,7 @@ async function fetchOAuthUsage(): Promise<OAuthUsageResult> {
       return lastOAuthUsageResult;
     }
 
-    const accessToken = getOAuthAccessToken();
+    const accessToken = await getOAuthAccessToken();
     if (!accessToken) {
       throw new Error("OAuth 토큰을 찾을 수 없습니다. claude login 후 다시 시도하세요.");
     }
@@ -367,7 +372,7 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
   );
 
   if (!response.ok) {
-    console.error(`[Admin API] 오류 (${response.status}):`, await response.text());
+    console.error(`[Admin API] 오류 (${response.status})`);
     throw new Error(`Anthropic Admin API 오류 (${response.status})`);
   }
 
@@ -409,7 +414,7 @@ async function fetchAdminWeekUsage(): Promise<AdminWeekUsageResult> {
     },
   );
   if (!currentResponse.ok) {
-    console.error(`[Admin API] 오류 (${currentResponse.status}):`, await currentResponse.text());
+    console.error(`[Admin API] 오류 (${currentResponse.status})`);
     throw new Error(`Anthropic Admin API 오류 (${currentResponse.status})`);
   }
   const currentPayload = (await currentResponse.json()) as UsageReportResponse;
