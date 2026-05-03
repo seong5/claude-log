@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { addCalendarDays, todayLocalYmd } from '../helpers/date'
 import { injectClaudeLogMock, makeDayData } from '../helpers/mock-ipc'
 
-const TODAY = '2026-04-23'
+const TODAY = todayLocalYmd()
 
 test.describe('StatsPanel', () => {
   test('renders all four stat cards', async ({ page }) => {
@@ -14,11 +15,11 @@ test.describe('StatsPanel', () => {
   })
 
   test('shows correct streak count for consecutive days', async ({ page }) => {
-    // 3 consecutive days ending yesterday, today has no tokens
+    // 3 consecutive calendar days before today with usage; today has no tokens (heatmap order)
     const days = [
-      makeDayData({ date: '2026-04-20', tokens: 50_000 }),
-      makeDayData({ date: '2026-04-21', tokens: 30_000 }),
-      makeDayData({ date: '2026-04-22', tokens: 40_000 }),
+      makeDayData({ date: addCalendarDays(TODAY, -3), tokens: 50_000 }),
+      makeDayData({ date: addCalendarDays(TODAY, -2), tokens: 30_000 }),
+      makeDayData({ date: addCalendarDays(TODAY, -1), tokens: 40_000 }),
       makeDayData({ date: TODAY, tokens: 0, sessions: 0 }),
     ]
     await injectClaudeLogMock(page, { days })
@@ -66,11 +67,7 @@ test.describe('StatsPanel', () => {
   })
 
   test('shows 이번 달 token total in hero card', async ({ page }) => {
-    const days = [
-      makeDayData({ date: '2026-04-01', tokens: 500_000 }),
-      makeDayData({ date: '2026-04-15', tokens: 300_000 }),
-      makeDayData({ date: TODAY, tokens: 200_000 }),
-    ]
+    const days = [makeDayData({ date: TODAY, tokens: 1_000_000 })]
     await injectClaudeLogMock(page, { days })
     await page.goto('/')
     await expect(page.getByText('이번 달').first()).toBeVisible()

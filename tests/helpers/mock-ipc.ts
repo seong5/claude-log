@@ -8,6 +8,7 @@ import {
   type SessionData,
   type OAuthUsageData,
 } from '../fixtures/mock-data'
+import { todayLocalYmd } from './date'
 
 export interface MockIpcOptions {
   days?: DayData[]
@@ -18,10 +19,8 @@ export interface MockIpcOptions {
   oauthUsageError?: string
 }
 
-const TODAY = '2026-04-23'
-
 export async function injectClaudeLogMock(page: Page, opts: MockIpcOptions = {}): Promise<void> {
-  const days = opts.days ?? makeWeekOfDays(TODAY, 30)
+  const days = opts.days ?? makeWeekOfDays(todayLocalYmd(), 30)
   const currentSession =
     opts.currentSession !== undefined ? opts.currentSession : makeSessionData()
   const recentFiveHourTokens = opts.recentFiveHourTokens ?? 30_000
