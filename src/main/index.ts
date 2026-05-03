@@ -223,10 +223,7 @@ function readEnvFromFile(key: string): string | null {
 }
 
 function getAdminApiKey(): string | null {
-  return (
-    process.env["ANTHROPIC_ADMIN_API_KEY"] ??
-    readEnvFromFile("ANTHROPIC_ADMIN_API_KEY")
-  );
+  return process.env["ANTHROPIC_ADMIN_API_KEY"] ?? readEnvFromFile("ANTHROPIC_ADMIN_API_KEY");
 }
 
 async function getOAuthAccessToken(): Promise<string | null> {
