@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { todayLocalYmd } from '../helpers/date'
 import { injectClaudeLogMock, makeOAuthUsageData, makeWeekOfDays } from '../helpers/mock-ipc'
 
-const TODAY = '2026-04-23'
+const TODAY = todayLocalYmd()
 
 test.describe('Dashboard layout', () => {
   test('renders app header with Claude Log title', async ({ page }) => {

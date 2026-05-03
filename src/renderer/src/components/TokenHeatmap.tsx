@@ -96,19 +96,19 @@ export default function TokenHeatmap({ data, today }: Props) {
     return result;
   }, [data]);
 
-  // Month labels
+  // Month labels — one row per week column (CELL wide); horizontal "1월" via scale to fit narrow column
   const monthLabels = useMemo(() => {
-    const labels: { label: string; weekIndex: number }[] = [];
+    const labels: { label: string; title: string; weekIndex: number }[] = [];
     let lastMonth = -1;
     weeks.forEach((week, wi) => {
       const firstReal = week.find((d) => d !== null);
       if (!firstReal) return;
-      const m = new Date(firstReal.date + "T00:00:00").getMonth();
+      const d = new Date(firstReal.date + "T00:00:00");
+      const m = d.getMonth();
       if (m !== lastMonth) {
         labels.push({
-          label: new Date(firstReal.date + "T00:00:00").toLocaleDateString("ko-KR", {
-            month: "short",
-          }),
+          label: `${m + 1}월`,
+          title: d.toLocaleDateString("ko-KR", { year: "numeric", month: "long" }),
           weekIndex: wi,
         });
         lastMonth = m;
@@ -120,34 +120,25 @@ export default function TokenHeatmap({ data, today }: Props) {
   const DAY_LABELS = ["일", "", "화", "", "목", "", "토"];
   const CELL = 13;
   const GAP = 2;
+  const MONTH_ROW_HEIGHT = 14;
+
+  const dayLabelColWidth = 24;
 
   return (
     <div className="relative select-none">
-      {/* Month labels */}
-      <div className="flex mb-1 ml-8 overflow-hidden">
-        {weeks.map((_, wi) => {
-          const found = monthLabels.find((m) => m.weekIndex === wi);
-          return (
-            <div
-              key={wi}
-              style={{ width: CELL + GAP, flexShrink: 0, fontSize: 10 }}
-              className="text-gray-500 overflow-hidden whitespace-nowrap"
-            >
-              {found ? found.label : ""}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Scrollable heatmap wrapper */}
+      {/* Single horizontal scroll: month labels + grid stay aligned */}
       <div ref={containerRef} className="overflow-x-auto pb-2">
         <div className="flex gap-0" style={{ width: "max-content" }}>
-          {/* Day labels */}
-          <div className="flex flex-col mr-1" style={{ gap: GAP }}>
+          {/* Day-of-week labels (scroll with grid so month row stays column-aligned) */}
+          <div
+            className="flex flex-col shrink-0 mr-1"
+            style={{ gap: GAP, width: dayLabelColWidth }}
+          >
+            <div className="shrink-0 mb-1" style={{ minHeight: MONTH_ROW_HEIGHT }} aria-hidden />
             {DAY_LABELS.map((label, i) => (
               <div
                 key={i}
-                style={{ width: 24, height: CELL, fontSize: 10 }}
+                style={{ width: dayLabelColWidth, height: CELL, fontSize: 10 }}
                 className="text-gray-500 flex items-center justify-end pr-1 shrink-0"
               >
                 {label}
@@ -155,29 +146,100 @@ export default function TokenHeatmap({ data, today }: Props) {
             ))}
           </div>
 
-          {/* Heatmap grid */}
-          <div className="flex" style={{ gap: GAP }}>
-            {weeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
-                {week.map((day, di) => {
-                  if (day === null) {
-                    return <div key={di} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
-                  }
+          <div className="flex flex-col shrink-0">
+            {/* Month labels — same scroll container as cells */}
+            <div className="flex mb-1 shrink-0" style={{ gap: GAP }}>
+              {weeks.map((_, wi) => {
+                const found = monthLabels.find((m) => m.weekIndex === wi);
+                return (
+                  <div
+                    key={wi}
+                    title={found?.title}
+                    aria-label={found?.label}
+                    style={{
+                      width: CELL,
+                      height: MONTH_ROW_HEIGHT,
+                      flexShrink: 0,
+                    }}
+                    className="text-gray-500 flex items-center justify-center overflow-hidden"
+                  >
+                    {found ? (
+                      <span
+                        className="inline-block whitespace-nowrap"
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 1,
+                          transform: "scale(0.6)",
+                          transformOrigin: "center",
+                        }}
+                      >
+                        {found.label}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
 
-                  const isFuture = day.date > today;
-                  const level = getIntensityLevel(day.tokens, maxTokens);
+            {/* Heatmap grid */}
+            <div className="flex shrink-0" style={{ gap: GAP }}>
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
+                  {week.map((day, di) => {
+                    if (day === null) {
+                      return <div key={di} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
+                    }
 
-                  // ── Future cell (시각은 사용량 0인 날과 동일, 툴팁만 예정) ──
-                  if (isFuture) {
+                    const isFuture = day.date > today;
+                    const level = getIntensityLevel(day.tokens, maxTokens);
+
+                    // ── Future cell (시각은 사용량 0인 날과 동일, 툴팁만 예정) ──
+                    if (isFuture) {
+                      return (
+                        <div
+                          key={di}
+                          style={{
+                            width: CELL,
+                            height: CELL,
+                            borderRadius: 2,
+                            backgroundColor: INTENSITY_COLORS[0],
+                            border: `1px solid ${EMPTY_CELL_BORDER}`,
+                            boxSizing: "border-box",
+                            flexShrink: 0,
+                            cursor: "pointer",
+                            transition: "transform 0.1s",
+                          }}
+                          className="hover:scale-125 hover:z-10"
+                          onMouseEnter={(e) => {
+                            const rect = (e.target as HTMLElement).getBoundingClientRect();
+                            setTooltip({
+                              visible: true,
+                              x: rect.left + rect.width / 2,
+                              y: rect.top - 8,
+                              data: day,
+                              isFuture: true,
+                            });
+                          }}
+                          onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
+                        />
+                      );
+                    }
+
+                    // ── 과거·오늘: 사용량 강도 색만 (오늘 전용 스타일 없음) ──
+                    const bg = INTENSITY_COLORS[level];
+                    const isEmpty = level === 0;
                     return (
                       <div
                         key={di}
+                        ref={day.date === today ? todayCellRef : undefined}
                         style={{
                           width: CELL,
                           height: CELL,
                           borderRadius: 2,
-                          backgroundColor: INTENSITY_COLORS[0],
-                          border: `1px solid ${EMPTY_CELL_BORDER}`,
+                          backgroundColor: bg,
+                          border: isEmpty
+                            ? `1px solid ${EMPTY_CELL_BORDER}`
+                            : "1px solid transparent",
                           boxSizing: "border-box",
                           flexShrink: 0,
                           cursor: "pointer",
@@ -191,57 +253,25 @@ export default function TokenHeatmap({ data, today }: Props) {
                             x: rect.left + rect.width / 2,
                             y: rect.top - 8,
                             data: day,
-                            isFuture: true,
+                            isFuture: false,
                           });
                         }}
                         onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
                       />
                     );
-                  }
-
-                  // ── 과거·오늘: 사용량 강도 색만 (오늘 전용 스타일 없음) ──
-                  const bg = INTENSITY_COLORS[level];
-                  const isEmpty = level === 0;
-                  return (
-                    <div
-                      key={di}
-                      ref={day.date === today ? todayCellRef : undefined}
-                      style={{
-                        width: CELL,
-                        height: CELL,
-                        borderRadius: 2,
-                        backgroundColor: bg,
-                        border: isEmpty
-                          ? `1px solid ${EMPTY_CELL_BORDER}`
-                          : "1px solid transparent",
-                        boxSizing: "border-box",
-                        flexShrink: 0,
-                        cursor: "pointer",
-                        transition: "transform 0.1s",
-                      }}
-                      className="hover:scale-125 hover:z-10"
-                      onMouseEnter={(e) => {
-                        const rect = (e.target as HTMLElement).getBoundingClientRect();
-                        setTooltip({
-                          visible: true,
-                          x: rect.left + rect.width / 2,
-                          y: rect.top - 8,
-                          data: day,
-                          isFuture: false,
-                        });
-                      }}
-                      onMouseLeave={() => setTooltip((t) => ({ ...t, visible: false }))}
-                    />
-                  );
-                })}
-              </div>
-            ))}
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-2 mt-3 ml-8 flex-wrap">
+      {/* Legend — indent to align with week columns when scroll position is 0 */}
+      <div
+        className="flex items-center gap-2 mt-3 flex-wrap"
+        style={{ marginLeft: dayLabelColWidth + 4 }}
+      >
         <span style={{ fontSize: 10, color: "#9a8070" }}>적음</span>
         {INTENSITY_COLORS.map((color, i) => (
           <div

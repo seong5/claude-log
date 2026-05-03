@@ -109,7 +109,8 @@ export default function UsagePanel({
   usageError,
   onRefreshUsage,
 }: UsagePanelProps) {
-  const [lastUpdated, setLastUpdated] = useState("방금 전");
+  const [updatedAt, setUpdatedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [showPlanInfo, setShowPlanInfo] = useState(false);
   const currentSessionPct = usage?.sessionUsagePercent ?? 0;
   const h = Math.floor((usage?.sessionResetSeconds ?? 0) / 3600);
@@ -122,17 +123,17 @@ export default function UsagePanel({
     : "주간 리셋 정보 없음";
 
   useEffect(() => {
-    setLastUpdated("방금 전");
-    const t = setInterval(() => {
-      setLastUpdated((prev) => {
-        const match = prev.match(/^(\d+)분 전$/);
-        if (match) return `${parseInt(match[1]) + 1}분 전`;
-        if (prev === "방금 전") return "1분 전";
-        return prev;
-      });
-    }, 60_000);
-    return () => clearInterval(t);
+    setUpdatedAt(Date.now());
+    setNow(Date.now());
   }, [usage]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const minutesAgo = Math.floor((now - updatedAt) / 60_000);
+  const lastUpdated = minutesAgo === 0 ? "방금 전" : `${minutesAgo}분 전`;
 
   return (
     <div
