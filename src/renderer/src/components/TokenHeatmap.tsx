@@ -187,7 +187,7 @@ export default function TokenHeatmap({ data, today }: Props) {
                 <div key={wi} className="flex flex-col" style={{ gap: GAP }}>
                   {week.map((day, di) => {
                     if (day === null) {
-                      return <div key={di} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
+                      return <div key={`pad-${wi}-${di}`} style={{ width: CELL, height: CELL, flexShrink: 0 }} />;
                     }
 
                     const isFuture = day.date > today;
@@ -225,13 +225,14 @@ export default function TokenHeatmap({ data, today }: Props) {
                       );
                     }
 
-                    // ── 과거·오늘: 사용량 강도 색만 (오늘 전용 스타일 없음) ──
+                    // ── 과거·오늘 ──
                     const bg = INTENSITY_COLORS[level];
                     const isEmpty = level === 0;
+                    const isToday = day.date === today;
                     return (
                       <div
                         key={di}
-                        ref={day.date === today ? todayCellRef : undefined}
+                        ref={isToday ? todayCellRef : undefined}
                         style={{
                           width: CELL,
                           height: CELL,
@@ -244,6 +245,10 @@ export default function TokenHeatmap({ data, today }: Props) {
                           flexShrink: 0,
                           cursor: "pointer",
                           transition: "transform 0.1s",
+                          ...(isToday && {
+                            outline: "2px solid #d9622a",
+                            outlineOffset: "1px",
+                          }),
                         }}
                         className="hover:scale-125 hover:z-10"
                         onMouseEnter={(e) => {

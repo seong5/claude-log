@@ -6,13 +6,6 @@ import { Card, CardContent } from './ui/card'
 import { Progress } from './ui/progress'
 import { Separator } from './ui/separator'
 
-function shortModelName(model: string): string {
-  if (model.includes('opus')) return `Opus ${extractVersion(model)}`
-  if (model.includes('sonnet')) return `Sonnet ${extractVersion(model)}`
-  if (model.includes('haiku')) return `Haiku ${extractVersion(model)}`
-  return model
-}
-
 function extractVersion(model: string): string {
   const m = model.match(/(\d+\.\d+)/)
   return m ? m[1] : ''
@@ -24,11 +17,22 @@ const MODEL_COLORS: Record<string, string> = {
   haiku: '#34d399',
 }
 
+function getModelFamily(model: string): string | null {
+  if (model.includes('opus')) return 'opus'
+  if (model.includes('sonnet')) return 'sonnet'
+  if (model.includes('haiku')) return 'haiku'
+  return null
+}
+
+function shortModelName(model: string): string {
+  const family = getModelFamily(model)
+  if (!family) return model
+  return `${family[0].toUpperCase()}${family.slice(1)} ${extractVersion(model)}`
+}
+
 function modelColor(model: string): string {
-  if (model.includes('opus')) return MODEL_COLORS.opus
-  if (model.includes('sonnet')) return MODEL_COLORS.sonnet
-  if (model.includes('haiku')) return MODEL_COLORS.haiku
-  return '#94a3b8'
+  const family = getModelFamily(model)
+  return family ? MODEL_COLORS[family] : '#94a3b8'
 }
 
 interface StatCardProps {

@@ -1,6 +1,6 @@
 {
   "name": "claude-log",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "description": "Claude Log Electron App",
   "main": "./out/main/index.js",
   "author": "seong5",

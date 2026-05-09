@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import type { OAuthUsageData } from "../../../preload/index.d";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Separator } from "./ui/separator";
+import { useEffect, useRef, useState } from 'react';
+import type { OAuthUsageData } from '../../../preload/index.d';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Separator } from './ui/separator';
 
 interface UsagePanelProps {
   usage: OAuthUsageData | null;
@@ -20,12 +20,30 @@ interface LimitRowProps {
   icon: string;
 }
 
-type UsageLevel = "safe" | "warn" | "danger";
+type UsageLevel = 'safe' | 'warn' | 'danger';
 
 function getUsageLevel(pct: number): UsageLevel {
-  if (pct >= 85) return "danger";
-  if (pct >= 60) return "warn";
-  return "safe";
+  if (pct >= 85) return 'danger';
+  if (pct >= 60) return 'warn';
+  return 'safe';
+}
+
+function useLastUpdated(dep: unknown): string {
+  const [updatedAt, setUpdatedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    setUpdatedAt(Date.now());
+    setNow(Date.now());
+  }, [dep]);
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const minutesAgo = Math.floor((now - updatedAt) / 60_000);
+  return minutesAgo === 0 ? '방금 전' : `${minutesAgo}분 전`;
 }
 
 function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps) {
@@ -33,35 +51,41 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
 
   useEffect(() => {
     setFilled(false);
-    const t = setTimeout(() => setFilled(true), 120);
-    return () => clearTimeout(t);
+    let raf2: number;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setFilled(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [usedPct]);
 
   const pct = Math.max(0, Math.min(usedPct, 100));
   const level = getUsageLevel(pct);
   const barColor =
-    level === "danger"
-      ? "linear-gradient(to right, #e05252, #c53030)"
-      : level === "warn"
-        ? "linear-gradient(to right, #f2a654, #dc8a2f)"
-        : "linear-gradient(to right, #5abf8a, #3d9f6a)";
+    level === 'danger'
+      ? 'linear-gradient(to right, #e05252, #c53030)'
+      : level === 'warn'
+        ? 'linear-gradient(to right, #f2a654, #dc8a2f)'
+        : 'linear-gradient(to right, #5abf8a, #3d9f6a)';
   const badgeStyle =
-    level === "danger"
+    level === 'danger'
       ? {
-          backgroundColor: "#ffe4e6",
-          color: "#c53030",
-          border: "1px solid #f5b3bb",
+          backgroundColor: '#ffe4e6',
+          color: '#c53030',
+          border: '1px solid #f5b3bb',
         }
-      : level === "warn"
+      : level === 'warn'
         ? {
-            backgroundColor: "#fff4de",
-            color: "#b26a00",
-            border: "1px solid #f4d39b",
+            backgroundColor: '#fff4de',
+            color: '#b26a00',
+            border: '1px solid #f4d39b',
           }
         : {
-            backgroundColor: "#e8f7ee",
-            color: "#2f8f57",
-            border: "1px solid #bfe7cd",
+            backgroundColor: '#e8f7ee',
+            color: '#2f8f57',
+            border: '1px solid #bfe7cd',
           };
 
   return (
@@ -70,12 +94,12 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm shrink-0">{icon}</span>
           <div className="min-w-0">
-            <p className="text-[13px] font-bold leading-tight" style={{ color: "#3a2010" }}>
+            <p className="text-[13px] font-bold leading-tight" style={{ color: '#3a2010' }}>
               {label}
             </p>
             <p
               className="text-[11px] mt-0.5 truncate"
-              style={{ color: "#9a7060" }}
+              style={{ color: '#9a7060' }}
               title={subLabel}
             >
               {subLabel}
@@ -95,10 +119,63 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
         value={filled ? Math.max(pct > 0 ? 1.5 : 0, pct) : 0}
         indicatorStyle={{
           background: barColor,
-          boxShadow: "0 1px 4px rgba(217, 98, 42, 0.3)",
-          transition: `width ${filled ? "0.9s cubic-bezier(0.22,1,0.36,1)" : "0.2s ease"}`,
+          boxShadow: '0 1px 4px rgba(217, 98, 42, 0.3)',
+          transition: `width ${filled ? '0.9s cubic-bezier(0.22,1,0.36,1)' : '0.2s ease'}`,
         }}
       />
+    </div>
+  );
+}
+
+interface PlanInfoPopoverProps {
+  planName: string;
+}
+
+function PlanInfoPopover({ planName }: PlanInfoPopoverProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent): void => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative flex items-center gap-1">
+      <Badge variant="warm">{planName}</Badge>
+      <Button
+        onClick={() => setOpen((prev) => !prev)}
+        variant="ghost"
+        size="icon-xs"
+        className="rounded-full p-0 text-[10px] font-bold"
+        style={{
+          backgroundColor: '#f5ebe0',
+          color: '#9a7060',
+          border: '1px solid #ecdccc',
+          lineHeight: 1,
+        }}
+        aria-label="플랜 데이터 안내 보기"
+        title="플랜 데이터 안내"
+      >
+        ?
+      </Button>
+      {open ? (
+        <div
+          className="absolute top-full left-0 mt-1 px-2 py-1 rounded-md text-[10px] font-medium whitespace-nowrap z-10"
+          style={{
+            backgroundColor: '#fff6eb',
+            color: '#9a7060',
+            border: '1px solid #ecdccc',
+            boxShadow: '0 2px 8px rgba(180, 100, 50, 0.12)',
+          }}
+        >
+          OAuth Usage API 기반 데이터입니다.
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -109,79 +186,33 @@ export default function UsagePanel({
   usageError,
   onRefreshUsage,
 }: UsagePanelProps) {
-  const [updatedAt, setUpdatedAt] = useState(() => Date.now());
-  const [now, setNow] = useState(() => Date.now());
-  const [showPlanInfo, setShowPlanInfo] = useState(false);
+  const lastUpdated = useLastUpdated(usage);
   const currentSessionPct = usage?.sessionUsagePercent ?? 0;
   const h = Math.floor((usage?.sessionResetSeconds ?? 0) / 3600);
   const m = Math.floor(((usage?.sessionResetSeconds ?? 0) % 3600) / 60);
   const currentSessionSubLabel =
-    usage && usage.sessionResetSeconds > 0 ? `${h}시간 ${m}분 후 초기화` : "곧 초기화";
+    usage && usage.sessionResetSeconds > 0 ? `${h}시간 ${m}분 후 초기화` : '곧 초기화';
   const weeklyAllModelsPct = usage?.weeklyAllModelsPercent ?? 0;
   const weeklyAllModelsReset = usage?.weeklyAllModelsResetLabel
     ? `${usage.weeklyAllModelsResetLabel} 초기화`
-    : "주간 리셋 정보 없음";
-
-  useEffect(() => {
-    setUpdatedAt(Date.now());
-    setNow(Date.now());
-  }, [usage]);
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(t);
-  }, []);
-
-  const minutesAgo = Math.floor((now - updatedAt) / 60_000);
-  const lastUpdated = minutesAgo === 0 ? "방금 전" : `${minutesAgo}분 전`;
+    : '주간 리셋 정보 없음';
 
   return (
     <div
       className="rounded-2xl p-4"
       style={{
-        backgroundColor: "#fffcf8",
-        border: "1px solid #ecdccc",
-        boxShadow: "0 2px 16px rgba(180, 100, 50, 0.07)",
+        backgroundColor: '#fffcf8',
+        border: '1px solid #ecdccc',
+        boxShadow: '0 2px 16px rgba(180, 100, 50, 0.07)',
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
+          <h2 className="font-extrabold text-sm" style={{ color: '#3a2010' }}>
             📊 플랜 사용 한도
           </h2>
-          <div className="relative flex items-center gap-1">
-            <Badge variant="warm">{usage?.planName ?? "Pro"}</Badge>
-            <Button
-              onClick={() => setShowPlanInfo((prev) => !prev)}
-              variant="ghost"
-              size="icon-xs"
-              className="rounded-full p-0 text-[10px] font-bold"
-              style={{
-                backgroundColor: "#f5ebe0",
-                color: "#9a7060",
-                border: "1px solid #ecdccc",
-                lineHeight: 1,
-              }}
-              aria-label="플랜 데이터 안내 보기"
-              title="플랜 데이터 안내"
-            >
-              ?
-            </Button>
-            {showPlanInfo ? (
-              <div
-                className="absolute top-full left-0 mt-1 px-2 py-1 rounded-md text-[10px] font-medium whitespace-nowrap z-10"
-                style={{
-                  backgroundColor: "#fff6eb",
-                  color: "#9a7060",
-                  border: "1px solid #ecdccc",
-                  boxShadow: "0 2px 8px rgba(180, 100, 50, 0.12)",
-                }}
-              >
-                Oauth usage api 기반 데이터입니다.
-              </div>
-            ) : null}
-          </div>
+          <PlanInfoPopover planName={usage?.planName ?? 'Pro'} />
         </div>
       </div>
 
@@ -200,7 +231,7 @@ export default function UsagePanel({
         {/* Weekly Section Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[13px] font-bold" style={{ color: "#3a2010" }}>
+            <p className="text-[13px] font-bold" style={{ color: '#3a2010' }}>
               주간 한도
             </p>
           </div>
@@ -219,12 +250,23 @@ export default function UsagePanel({
           <div
             className="text-[11px] px-3 py-2 rounded-xl font-medium"
             style={{
-              backgroundColor: "#fde8d5",
-              color: "#c05030",
-              border: "1px solid #f4c4a0",
+              backgroundColor: '#fde8d5',
+              color: '#c05030',
+              border: '1px solid #f4c4a0',
             }}
           >
             ⚠️ {usageError}
+          </div>
+        ) : !usageLoading && !usage ? (
+          <div
+            className="text-[11px] px-3 py-2 rounded-xl font-medium"
+            style={{
+              backgroundColor: '#f5ebe0',
+              color: '#9a7060',
+              border: '1px solid #ecdccc',
+            }}
+          >
+            ℹ️ 터미널에서 <code className="font-mono">claude</code> 로그인 후 새로고침해주세요.
           </div>
         ) : null}
       </div>
@@ -232,7 +274,7 @@ export default function UsagePanel({
       {/* Footer */}
       <div
         className="flex items-center gap-1.5 mt-4 pt-3"
-        style={{ borderTop: "1px solid #ecdccc" }}
+        style={{ borderTop: '1px solid #ecdccc' }}
       >
         <Button
           onClick={() => void onRefreshUsage()}
@@ -251,14 +293,14 @@ export default function UsagePanel({
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            style={{ display: "block" }}
+            style={{ display: 'block' }}
           >
             <path d="M23 4v6h-6" />
             <path d="M1 20v-6h6" />
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
         </Button>
-        <span className="text-[10px] font-semibold" style={{ color: "#c0a090" }}>
+        <span className="text-[10px] font-semibold" style={{ color: '#c0a090' }}>
           마지막 업데이트: {lastUpdated}
         </span>
       </div>

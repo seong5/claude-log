@@ -65,11 +65,14 @@ class LogService {
   }
 
   getCurrentSession(): SessionData | null {
-    const todayUTC = new Date().toISOString().split('T')[0]
+    const today = new Date()
+    const todayLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     let latest: (SessionAccum & { sessionId: string }) | null = null
 
     for (const [sessionId, accum] of this.sessionMap) {
-      if (!accum.lastTimestamp.startsWith(todayUTC)) continue
+      const localDate = new Date(accum.lastTimestamp)
+      const localYmd = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`
+      if (localYmd !== todayLocal) continue
       if (!latest || accum.lastTimestamp > latest.lastTimestamp) {
         latest = { sessionId, ...accum }
       }

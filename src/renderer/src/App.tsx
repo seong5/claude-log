@@ -8,7 +8,7 @@ import { Badge } from "./components/ui/badge";
 import { Card, CardContent } from "./components/ui/card";
 import { Separator } from "./components/ui/separator";
 import { useLogStore } from "./store/useLogStore";
-import { useHeatmapData } from "./hooks/useHeatmapData";
+import { useHeatmapData, getHeatmapRange } from "./hooks/useHeatmapData";
 import { useOAuthUsage } from "./hooks/useOAuthUsage";
 import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
 import mainLogo from "../../../build/main-logo.png";
@@ -50,6 +50,18 @@ export default function App(): React.JSX.Element {
       document.removeEventListener("visibilitychange", checkDate);
     };
   }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => void fetchOAuthUsage(), 5 * 60_000);
+    const onVisibility = (): void => {
+      if (document.visibilityState === "visible") void fetchOAuthUsage();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fetchOAuthUsage]);
 
   const { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens } =
     useHeatmapData(allDays, today);
@@ -215,7 +227,10 @@ export default function App(): React.JSX.Element {
                       🗓 활동 히트맵
                     </h2>
                     <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
-                      {new Date().getFullYear()}년 1월 ~ 12월 토큰 사용 기록
+                      {(() => {
+                        const { start, end } = getHeatmapRange();
+                        return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ~ ${end.getMonth() + 1}월 토큰 사용 기록`;
+                      })()}
                     </p>
                   </div>
                   <Badge variant="warm" className="gap-1.5 px-3 py-1.5 text-xs font-semibold">
