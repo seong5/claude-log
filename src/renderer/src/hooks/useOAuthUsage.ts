@@ -6,7 +6,7 @@ export function useOAuthUsage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetch = useCallback(async (): Promise<void> => {
+  const fetchUsage = useCallback(async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
@@ -18,5 +18,5 @@ export function useOAuthUsage() {
     }
   }, []);
 
-  return { data, loading, error, fetch };
+  return { data, loading, error, fetch: fetchUsage };
 }
