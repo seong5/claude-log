@@ -51,6 +51,18 @@ export default function App(): React.JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    const id = setInterval(() => void fetchOAuthUsage(), 5 * 60_000);
+    const onVisibility = (): void => {
+      if (document.visibilityState === "visible") void fetchOAuthUsage();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [fetchOAuthUsage]);
+
   const { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens } =
     useHeatmapData(allDays, today);
 
