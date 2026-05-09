@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { DayData } from '../../../preload/index.d'
 import { formatLocalYmd } from '../lib/formatters'
 
-function getHeatmapRange(): { start: Date; end: Date } {
+export function getHeatmapRange(): { start: Date; end: Date } {
   const now = new Date()
   const year = now.getFullYear()
   const start = new Date(year, 0, 1)       // 올해 1월 1일

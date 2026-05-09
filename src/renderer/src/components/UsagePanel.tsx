@@ -33,8 +33,14 @@ function LimitRow({ label, subLabel, usedPct, rightLabel, icon }: LimitRowProps)
 
   useEffect(() => {
     setFilled(false);
-    const t = setTimeout(() => setFilled(true), 120);
-    return () => clearTimeout(t);
+    let raf2: number;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setFilled(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [usedPct]);
 
   const pct = Math.max(0, Math.min(usedPct, 100));
@@ -225,6 +231,17 @@ export default function UsagePanel({
             }}
           >
             ⚠️ {usageError}
+          </div>
+        ) : !usageLoading && !usage ? (
+          <div
+            className="text-[11px] px-3 py-2 rounded-xl font-medium"
+            style={{
+              backgroundColor: "#f5ebe0",
+              color: "#9a7060",
+              border: "1px solid #ecdccc",
+            }}
+          >
+            ℹ️ 터미널에서 <code className="font-mono">claude</code> 로그인 후 새로고침해주세요.
           </div>
         ) : null}
       </div>
