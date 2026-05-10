@@ -63,8 +63,12 @@ export default function App(): React.JSX.Element {
     };
   }, [fetchOAuthUsage]);
 
-  const { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens } =
+  const { heatmapData, filteredData, last7Days, maxLast7, thisWeekTokens, lastWeekTokens, lastWeekLabel } =
     useHeatmapData(allDays, today);
+
+  const weekGrowth = lastWeekTokens > 0
+    ? Math.round(((thisWeekTokens - lastWeekTokens) / lastWeekTokens) * 100)
+    : null;
 
   return (
     <div
@@ -161,10 +165,10 @@ export default function App(): React.JSX.Element {
             <CardContent className="flex gap-3 px-3 py-2 text-xs">
               <div className="text-right">
                 <div className="font-semibold" style={{ color: "#9a7060" }}>
-                  이번 달
+                  오늘
                 </div>
                 <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
-                  {formatTokensShort(totalThisMonth)}
+                  {formatTokensShort(filteredData.find((d) => d.date === today)?.tokens ?? 0)}
                 </div>
               </div>
               <Separator orientation="vertical" className="h-auto bg-[#ecdccc]" />
@@ -174,6 +178,26 @@ export default function App(): React.JSX.Element {
                 </div>
                 <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
                   {formatTokensShort(thisWeekTokens)}
+                </div>
+              </div>
+              <Separator orientation="vertical" className="h-auto bg-[#ecdccc]" />
+              <div className="relative group text-right cursor-default">
+                <div className="font-semibold" style={{ color: "#9a7060" }}>
+                  전주 대비
+                </div>
+                <div
+                  className="font-mono font-bold"
+                  style={{
+                    color: weekGrowth === null ? "#9a7060" : weekGrowth >= 0 ? "#2f8f57" : "#c53030",
+                  }}
+                >
+                  {weekGrowth === null ? '-' : `${weekGrowth >= 0 ? '▲' : '▼'} ${Math.abs(weekGrowth)}%`}
+                </div>
+                <div className="absolute top-full right-0 mt-1.5 hidden group-hover:block z-10
+                                rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-md"
+                  style={{ backgroundColor: "#3a2010", color: "#fde8d5" }}
+                >
+                  {lastWeekLabel}
                 </div>
               </div>
             </CardContent>
@@ -223,7 +247,7 @@ export default function App(): React.JSX.Element {
               <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
                 📊 요약 통계
               </h2>
-              <StatsPanel data={filteredData} allDays={allDays} today={today} />
+              <StatsPanel data={filteredData} today={today} />
             </div>
 
             {/* Heatmap Card */}

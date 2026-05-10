@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import type { DayData } from '../../../preload/index.d';
-import { formatTokens, formatLocalYmd } from '../lib/formatters';
+import { formatTokens } from '../lib/formatters';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Progress } from './ui/progress';
@@ -50,24 +50,26 @@ function StatCard({ label, value, sub, subGrid, color = '#c2410c', icon, badge, 
   return (
     <Card className="rounded-xl bg-white shadow-sm">
       <CardContent className={`flex flex-col gap-1.5 ${compact ? 'p-3' : 'p-4'}`}>
-        <div className="flex items-center gap-2">
-          <span className={compact ? 'text-base' : 'text-lg'}>{icon}</span>
-          <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">
-            {label}
-          </span>
-        </div>
-        <div className="flex flex-wrap items-baseline gap-2">
-          <div className={`font-mono font-bold ${compact ? 'text-xl' : 'text-2xl'}`} style={{ color }}>
-            {value}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className={compact ? 'text-base' : 'text-lg'}>{icon}</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-[#5c4030]">
+              {label}
+            </span>
           </div>
           {badge && (
             <Badge
               variant={badge.positive ? 'success' : 'muted'}
-              className="text-[11px] px-1.5 py-0.5"
+              className="text-[10px] px-1 py-0"
             >
               {badge.positive ? '▲' : '▼'} {badge.text}
             </Badge>
           )}
+        </div>
+        <div className="flex items-baseline">
+          <div className={`font-mono font-bold ${compact ? 'text-xl' : 'text-2xl'}`} style={{ color }}>
+            {value}
+          </div>
         </div>
         {sub && <div className="text-xs text-[#6b5344]">{sub}</div>}
         {subGrid && (
@@ -87,14 +89,12 @@ function StatCard({ label, value, sub, subGrid, color = '#c2410c', icon, badge, 
 
 interface Props {
   data: DayData[];
-  allDays?: DayData[];
   today: string;
 }
 
-export default function StatsPanel({ data, allDays = [], today }: Props) {
+export default function StatsPanel({ data, today }: Props) {
   const {
     totalTokens,
-    activeDays,
     todaySessions,
     todayTokens,
     peak,
@@ -104,7 +104,6 @@ export default function StatsPanel({ data, allDays = [], today }: Props) {
     streakStartLabel,
   } = useMemo(() => {
     const totalTokens = data.reduce((s, d) => s + d.tokens, 0);
-    const activeDays = data.filter((d) => d.tokens > 0).length;
     const ym = today.slice(0, 7);
     const thisMonthTokens = data
       .filter((d) => d.date.startsWith(ym))
@@ -146,7 +145,6 @@ export default function StatsPanel({ data, allDays = [], today }: Props) {
 
     return {
       totalTokens,
-      activeDays,
       todaySessions,
       todayTokens,
       peak,
@@ -170,23 +168,6 @@ export default function StatsPanel({ data, allDays = [], today }: Props) {
     return max;
   }, [data]);
 
-  // 주간 증감률: 이번 주 7일 vs 지난 주 7일 (allDays 기준으로 탭 전환과 무관하게 일관)
-  const weekGrowth = useMemo(() => {
-    if (allDays.length === 0) return null;
-    const map = new Map(allDays.map((d) => [d.date, d]));
-    let thisWeek = 0;
-    let lastWeek = 0;
-    for (let i = 0; i < 7; i++) {
-      const d1 = new Date(today + 'T00:00:00');
-      d1.setDate(d1.getDate() - i);
-      thisWeek += map.get(formatLocalYmd(d1))?.tokens ?? 0;
-      const d2 = new Date(today + 'T00:00:00');
-      d2.setDate(d2.getDate() - 7 - i);
-      lastWeek += map.get(formatLocalYmd(d2))?.tokens ?? 0;
-    }
-    if (lastWeek === 0) return null;
-    return Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
-  }, [allDays, today]);
 
   // 모델별 합산
   const modelTotals = useMemo(() => {
@@ -222,23 +203,10 @@ export default function StatsPanel({ data, allDays = [], today }: Props) {
         />
         <StatCard
           icon="📊"
-          label="올해 누적"
-          value={formatTokens(totalTokens)}
-          subGrid={
-            activeDays > 0
-              ? [
-                  { label: '일평균', value: formatTokens(Math.round(totalTokens / activeDays)) },
-                  { label: '이번달', value: formatTokens(thisMonthTokens) },
-                ]
-              : undefined
-          }
-          sub={activeDays === 0 ? '데이터 없음' : undefined}
+          label="이번달 누적"
+          value={thisMonthTokens > 0 ? formatTokens(thisMonthTokens) : '없음'}
+          sub={totalTokens > 0 ? `올해 누적 ${formatTokens(totalTokens)}` : '데이터 없음'}
           color="#c2410c"
-          badge={
-            weekGrowth !== null
-              ? { text: `${Math.abs(weekGrowth)}% 전주 대비`, positive: weekGrowth >= 0 }
-              : null
-          }
         />
         <StatCard
           icon="💬"
