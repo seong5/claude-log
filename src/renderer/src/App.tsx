@@ -218,6 +218,14 @@ export default function App(): React.JSX.Element {
               onRefreshUsage={fetchOAuthUsage}
             />
 
+            {/* Stats */}
+            <div>
+              <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
+                📊 요약 통계
+              </h2>
+              <StatsPanel data={filteredData} allDays={allDays} today={today} />
+            </div>
+
             {/* Heatmap Card */}
             <Card>
               <CardContent>
@@ -244,14 +252,6 @@ export default function App(): React.JSX.Element {
                 <TokenHeatmap data={heatmapData} today={today} />
               </CardContent>
             </Card>
-
-            {/* Stats */}
-            <div>
-              <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
-                📊 요약 통계
-              </h2>
-              <StatsPanel data={filteredData} allDays={allDays} today={today} />
-            </div>
 
             {/* Recent activity */}
             <RecentActivity days={last7Days} today={today} maxTokens={maxLast7} />
