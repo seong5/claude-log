@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { injectClaudeLogMock, makeDayData } from '../helpers/mock-ipc'
+import { addCalendarDays, todayLocalYmd } from '../helpers/date'
+
+const TODAY = todayLocalYmd()
 
 test.describe('TokenHeatmap', () => {
   test('renders 활동 히트맵 section heading', async ({ page }) => {
@@ -34,30 +37,26 @@ test.describe('TokenHeatmap', () => {
   })
 
   test('shows tooltip with 총 토큰 on colored cell hover', async ({ page }) => {
-    const days = [makeDayData({ date: '2026-04-01', tokens: 120_000, sessions: 4 })]
+    const days = [makeDayData({ date: addCalendarDays(TODAY, -2), tokens: 120_000, sessions: 4 })]
     await injectClaudeLogMock(page, { days })
     await page.goto('/')
 
     await expect(page.getByText('🗓 활동 히트맵')).toBeVisible()
 
-    // Find a colored cell (tokens > 0 → non-white background) and hover it
-    const cellCenter = await page.evaluate((): { x: number; y: number } | null => {
-      const cells = document.querySelectorAll<HTMLElement>('.hover\\:scale-125')
-      for (const cell of cells) {
+    // Find the index of the first colored cell (non-white = has token data)
+    const coloredIndex = await page.evaluate((): number => {
+      const cells = [...document.querySelectorAll<HTMLElement>('.hover\\:scale-125')]
+      return cells.findIndex((cell) => {
         const bg = cell.style.backgroundColor
-        // Non-white = has token data (levels 1-4 produce orange shades)
-        if (bg && bg !== 'rgb(255, 255, 255)' && bg !== '') {
-          const rect = cell.getBoundingClientRect()
-          return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
-        }
-      }
-      return null
+        return bg && bg !== 'rgb(255, 255, 255)' && bg !== ''
+      })
     })
 
-    if (cellCenter) {
-      await page.mouse.move(cellCenter.x, cellCenter.y)
-      await expect(page.getByText('총 토큰')).toBeVisible({ timeout: 2000 })
-    }
+    expect(coloredIndex).toBeGreaterThanOrEqual(0)
+
+    // locator.hover() auto-scrolls the element into view before hovering
+    await page.locator('.hover\\:scale-125').nth(coloredIndex).hover()
+    await expect(page.getByText('총 토큰')).toBeVisible({ timeout: 2000 })
   })
 
   test('renders month labels (1월, 3월)', async ({ page }) => {

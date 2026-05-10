@@ -158,10 +158,15 @@ class LogService {
   }
 
   private pushUpdate(): void {
-    const days = this.getDays()
+    const payload = {
+      days: this.getDays(),
+      currentSession: this.getCurrentSession(),
+      recentFiveHourTokens: this.getRecentFiveHourTokens(),
+      oldestRecentEntryTime: this.getOldestRecentEntryTime(),
+    }
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed()) {
-        win.webContents.send('claude-log:update', days)
+        win.webContents.send('claude-log:update', payload)
       }
     }
     this.onUpdateCallback?.(this.getTodayTokens())

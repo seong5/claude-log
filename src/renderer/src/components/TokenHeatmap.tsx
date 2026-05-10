@@ -128,7 +128,7 @@ export default function TokenHeatmap({ data, today }: Props) {
     <div className="relative select-none">
       {/* Single horizontal scroll: month labels + grid stay aligned */}
       <div ref={containerRef} className="overflow-x-auto pb-2">
-        <div className="flex gap-0" style={{ width: "max-content" }}>
+        <div className="flex gap-0 p-[2px]" style={{ width: "max-content" }}>
           {/* Day-of-week labels (scroll with grid so month row stays column-aligned) */}
           <div
             className="flex flex-col shrink-0 mr-1"
@@ -246,7 +246,7 @@ export default function TokenHeatmap({ data, today }: Props) {
                           cursor: "pointer",
                           transition: "transform 0.1s",
                           ...(isToday && {
-                            outline: "2px solid #d9622a",
+                            outline: "1px solid #d9622a",
                             outlineOffset: "1px",
                           }),
                         }}
