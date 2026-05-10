@@ -65,6 +65,6 @@ test.describe('UsagePanel - OAuth', () => {
     const infoBtn = page.getByRole('button', { name: '플랜 데이터 안내 보기' })
     await expect(infoBtn).toBeVisible()
     await infoBtn.click()
-    await expect(page.getByText('Oauth usage api 기반 데이터입니다.')).toBeVisible()
+    await expect(page.getByText('OAuth Usage API 기반 데이터입니다.')).toBeVisible()
   })
 })
