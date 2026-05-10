@@ -134,7 +134,7 @@ export default function App(): React.JSX.Element {
             Claude Log
           </span>
           <Badge variant="warm" className="text-xs font-semibold">
-            Beta
+            v{__APP_VERSION__}
           </Badge>
         </div>
 
