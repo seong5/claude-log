@@ -8,25 +8,25 @@ test.describe('Dashboard layout', () => {
   test('renders app header with Claude Log title', async ({ page }) => {
     await injectClaudeLogMock(page)
     await page.goto('/')
-    await expect(page.getByText('Claude Log')).toBeVisible()
+    await expect(page.getByText('Claude Log').first()).toBeVisible()
   })
 
-  test('renders Beta badge', async ({ page }) => {
+  test('renders version badge', async ({ page }) => {
     await injectClaudeLogMock(page)
     await page.goto('/')
-    await expect(page.getByText('Beta')).toBeVisible()
+    await expect(page.getByText(/^v\d+\.\d+\.\d+/)).toBeVisible()
   })
 
-  test('renders CLAUDE-LOG hero heading', async ({ page }) => {
+  test('renders CLAUDE LOG hero heading', async ({ page }) => {
     await injectClaudeLogMock(page)
     await page.goto('/')
-    await expect(page.getByText('CLAUDE-LOG ✨')).toBeVisible()
+    await expect(page.getByText('CLAUDE LOG ✨')).toBeVisible()
   })
 
-  test('renders 이번 달 and 최근 7일 hero cards', async ({ page }) => {
+  test('renders 오늘 and 최근 7일 hero stat cards', async ({ page }) => {
     await injectClaudeLogMock(page, { days: makeWeekOfDays(TODAY, 30) })
     await page.goto('/')
-    await expect(page.getByText('이번 달').first()).toBeVisible()
+    await expect(page.getByText('오늘').first()).toBeVisible()
     await expect(page.getByText('최근 7일').first()).toBeVisible()
   })
 

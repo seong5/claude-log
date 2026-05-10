@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { DayData } from './index.d'
+import type { UpdatePayload } from './index.d'
 
 const claudeLogAPI = {
   getDays: () => ipcRenderer.invoke('claude-log:get-days'),
@@ -9,8 +9,8 @@ const claudeLogAPI = {
   getOldestRecentEntryTime: () => ipcRenderer.invoke('claude-log:get-oldest-recent-entry-time'),
   getAdminWeekUsage: () => ipcRenderer.invoke('claude-log:get-admin-week-usage'),
   getOAuthUsage: () => ipcRenderer.invoke('claude-log:get-oauth-usage'),
-  onUpdate: (callback: (days: DayData[]) => void) => {
-    const handler = (_: Electron.IpcRendererEvent, days: DayData[]) => callback(days)
+  onUpdate: (callback: (payload: UpdatePayload) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, payload: UpdatePayload) => callback(payload)
     ipcRenderer.on('claude-log:update', handler)
     return () => ipcRenderer.removeListener('claude-log:update', handler)
   },

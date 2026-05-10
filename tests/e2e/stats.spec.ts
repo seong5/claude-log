@@ -9,7 +9,7 @@ test.describe('StatsPanel', () => {
     await injectClaudeLogMock(page)
     await page.goto('/')
     await expect(page.getByText('연속 사용일')).toBeVisible()
-    await expect(page.getByText('올해 누적')).toBeVisible()
+    await expect(page.getByText('이번달 누적')).toBeVisible()
     await expect(page.getByText('오늘 세션')).toBeVisible()
     await expect(page.getByText('주력 모델')).toBeVisible()
   })
@@ -36,7 +36,6 @@ test.describe('StatsPanel', () => {
   })
 
   test('shows top model name in 주력 모델 card', async ({ page }) => {
-    // Model name with dot so extractVersion regex (\d+\.\d+) can match "4.5"
     const days = [
       makeDayData({
         date: TODAY,
@@ -46,8 +45,8 @@ test.describe('StatsPanel', () => {
     ]
     await injectClaudeLogMock(page, { days })
     await page.goto('/')
-    // shortModelName("claude-sonnet-4.5") → "Sonnet 4.5" (appears in card + model breakdown)
-    await expect(page.getByText('Sonnet 4.5').first()).toBeVisible()
+    // modelTotals aggregates by family key ('sonnet'), so shortModelName('sonnet') → 'Sonnet'
+    await expect(page.getByText('Sonnet').first()).toBeVisible()
   })
 
   test('renders model breakdown progress bars', async ({ page }) => {
@@ -66,12 +65,12 @@ test.describe('StatsPanel', () => {
     await expect(page.locator('[role="progressbar"]').first()).toBeVisible()
   })
 
-  test('shows 이번 달 token total in hero card', async ({ page }) => {
+  test('shows 이번달 누적 token total in stats card', async ({ page }) => {
     const days = [makeDayData({ date: TODAY, tokens: 1_000_000 })]
     await injectClaudeLogMock(page, { days })
     await page.goto('/')
-    await expect(page.getByText('이번 달').first()).toBeVisible()
-    // 1M total → formatTokensShort(1000000) = "1.0M" (appears in hero card + 올해 누적 stat)
+    await expect(page.getByText('이번달 누적').first()).toBeVisible()
+    // formatTokens(1_000_000) = "1.0M"
     await expect(page.getByText('1.0M').first()).toBeVisible()
   })
 

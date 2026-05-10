@@ -1,21 +1,25 @@
-import { useEffect, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import TokenHeatmap from "./components/TokenHeatmap";
-import StatsPanel from "./components/StatsPanel";
-import UsagePanel from "./components/UsagePanel";
-import RecentActivity from "./components/RecentActivity";
-import { Badge } from "./components/ui/badge";
-import { Card, CardContent } from "./components/ui/card";
-import { Separator } from "./components/ui/separator";
-import { useLogStore } from "./store/useLogStore";
-import { useHeatmapData, getHeatmapRange } from "./hooks/useHeatmapData";
-import { useOAuthUsage } from "./hooks/useOAuthUsage";
-import { formatLocalYmd, formatTokensShort } from "./lib/formatters";
-import mainLogo from "../../../build/main-logo.png";
+import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import TokenHeatmap from './components/TokenHeatmap';
+import StatsPanel from './components/StatsPanel';
+import UsagePanel from './components/UsagePanel';
+import RecentActivity from './components/RecentActivity';
+import { Badge } from './components/ui/badge';
+import { Card, CardContent } from './components/ui/card';
+import { Separator } from './components/ui/separator';
+import { useLogStore } from './store/useLogStore';
+import { useHeatmapData, getHeatmapRange } from './hooks/useHeatmapData';
+import { useOAuthUsage } from './hooks/useOAuthUsage';
+import { formatLocalYmd, formatTokensShort } from './lib/formatters';
+import mainLogo from '../../../build/main-logo.png';
 
 export default function App(): React.JSX.Element {
   const init = useLogStore((s) => s.init);
-  const { days: allDays, loading, error } = useLogStore(
+  const {
+    days: allDays,
+    loading,
+    error,
+  } = useLogStore(
     useShallow((s) => ({
       days: s.days,
       loading: s.loading,
@@ -23,7 +27,12 @@ export default function App(): React.JSX.Element {
     })),
   );
 
-  const { data: oauthUsage, loading: oauthUsageLoading, error: oauthUsageError, fetch: fetchOAuthUsage } = useOAuthUsage();
+  const {
+    data: oauthUsage,
+    loading: oauthUsageLoading,
+    error: oauthUsageError,
+    fetch: fetchOAuthUsage,
+  } = useOAuthUsage();
   const isOAuthConnected = Boolean(oauthUsage) && !oauthUsageError;
 
   useEffect(() => {
@@ -44,35 +53,47 @@ export default function App(): React.JSX.Element {
       setToday((prev) => (prev !== current ? current : prev));
     };
     const id = setInterval(checkDate, 60_000);
-    document.addEventListener("visibilitychange", checkDate);
+    document.addEventListener('visibilitychange', checkDate);
     return () => {
       clearInterval(id);
-      document.removeEventListener("visibilitychange", checkDate);
+      document.removeEventListener('visibilitychange', checkDate);
     };
   }, []);
 
   useEffect(() => {
     const id = setInterval(() => void fetchOAuthUsage(), 5 * 60_000);
     const onVisibility = (): void => {
-      if (document.visibilityState === "visible") void fetchOAuthUsage();
+      if (document.visibilityState === 'visible') void fetchOAuthUsage();
     };
-    document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [fetchOAuthUsage]);
 
-  const { heatmapData, filteredData, totalThisMonth, last7Days, maxLast7, thisWeekTokens } =
-    useHeatmapData(allDays, today);
+  const {
+    heatmapData,
+    filteredData,
+    last7Days,
+    maxLast7,
+    thisWeekTokens,
+    lastWeekTokens,
+    lastWeekLabel,
+  } = useHeatmapData(allDays, today);
+
+  const weekGrowth =
+    lastWeekTokens > 0
+      ? Math.round(((thisWeekTokens - lastWeekTokens) / lastWeekTokens) * 100)
+      : null;
 
   return (
     <div
       className="h-screen overflow-auto"
       style={{
-        backgroundColor: "#fdf6ec",
+        backgroundColor: '#fdf6ec',
         fontFamily: "'Nunito', system-ui, sans-serif",
-        color: "#4a2e1a",
+        color: '#4a2e1a',
         backgroundImage: `radial-gradient(ellipse at 20% 0%, rgba(244, 160, 85, 0.08) 0%, transparent 60%),
                           radial-gradient(ellipse at 80% 10%, rgba(217, 98, 42, 0.06) 0%, transparent 50%)`,
       }}
@@ -81,22 +102,22 @@ export default function App(): React.JSX.Element {
       <header
         className="sticky top-0 z-40 flex items-center justify-between px-4 py-2"
         style={{
-          backgroundColor: "rgba(253, 246, 236, 0.88)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid #ecdccc",
-          boxShadow: "0 1px 12px rgba(180, 100, 50, 0.06)",
+          backgroundColor: 'rgba(253, 246, 236, 0.88)',
+          backdropFilter: 'blur(16px)',
+          borderBottom: '1px solid #ecdccc',
+          boxShadow: '0 1px 12px rgba(180, 100, 50, 0.06)',
         }}
       >
         <div className="flex items-center gap-3">
           <div
             className="w-15 h-15 rounded-xl flex items-center justify-center overflow-hidden"
             style={{
-              boxShadow: "0 2px 8px rgba(217, 98, 42, 0.25)",
-              ...(logoError && { background: "linear-gradient(135deg, #f4a055, #d9622a)" }),
+              boxShadow: '0 2px 8px rgba(217, 98, 42, 0.25)',
+              ...(logoError && { background: 'linear-gradient(135deg, #f4a055, #d9622a)' }),
             }}
           >
             {logoError ? (
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>CL</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>CL</span>
             ) : (
               <img
                 src={mainLogo}
@@ -108,36 +129,34 @@ export default function App(): React.JSX.Element {
           </div>
           <span
             className="font-bold text-sm"
-            style={{ color: "#4a2e1a", letterSpacing: "-0.01em" }}
+            style={{ color: '#4a2e1a', letterSpacing: '-0.01em' }}
           >
             Claude Log
           </span>
           <Badge variant="warm" className="text-xs font-semibold">
-            Beta
+            v{__APP_VERSION__}
           </Badge>
         </div>
 
         <div className="flex items-center gap-3 text-xs">
           <Badge
-            variant={isOAuthConnected ? "success" : "muted"}
+            variant={isOAuthConnected ? 'success' : 'muted'}
             className="gap-1.5 px-2.5 py-1 text-xs font-semibold"
           >
             <span
               className="live-dot inline-block w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: isOAuthConnected ? "#2f8f57" : "#c53030" }}
+              style={{ backgroundColor: isOAuthConnected ? '#2f8f57' : '#c53030' }}
             />
-            <span
-              style={{ color: isOAuthConnected ? "#4a8c5c" : "#9a7060", fontWeight: 600 }}
-            >
-              {isOAuthConnected ? "연결됨" : "연결 안됨"}
+            <span style={{ color: isOAuthConnected ? '#4a8c5c' : '#9a7060', fontWeight: 600 }}>
+              {isOAuthConnected ? '연결됨' : '연결 안됨'}
             </span>
           </Badge>
           <Card className="rounded-xl border-[#f4c4a0] bg-[#fde8d5] shadow-none">
-            <CardContent className="px-3 py-1.5 text-xs" style={{ color: "#8c6248" }}>
-            현재 세션{" "}
-            <span className="font-mono font-bold ml-1" style={{ color: "#d9622a" }}>
-              {Math.round(oauthUsage?.sessionUsagePercent ?? 0)}%
-            </span>
+            <CardContent className="px-3 py-1.5 text-xs" style={{ color: '#8c6248' }}>
+              현재 세션{' '}
+              <span className="font-mono font-bold ml-1" style={{ color: '#d9622a' }}>
+                {Math.round(oauthUsage?.sessionUsagePercent ?? 0)}%
+              </span>
             </CardContent>
           </Card>
         </div>
@@ -149,31 +168,55 @@ export default function App(): React.JSX.Element {
           <div>
             <h1
               className="text-xl font-extrabold mb-0.5"
-              style={{ color: "#3a2010", letterSpacing: "-0.02em" }}
+              style={{ color: '#3a2010', letterSpacing: '-0.02em' }}
             >
-              CLAUDE-LOG ✨
+              CLAUDE LOG ✨
             </h1>
-            <p className="text-xs font-medium" style={{ color: "#9a7060" }}>
-              Claude Code 세션의 토큰 소비량을 추적합니다.
+            <p className="text-xs font-medium" style={{ color: '#9a7060' }}>
+              내 토큰은 내가 지킨다...⭐️
             </p>
           </div>
           <Card className="rounded-2xl bg-[#f5ebe0] shadow-none">
             <CardContent className="flex gap-3 px-3 py-2 text-xs">
               <div className="text-right">
-                <div className="font-semibold" style={{ color: "#9a7060" }}>
-                  이번 달
+                <div className="font-semibold" style={{ color: '#9a7060' }}>
+                  오늘
                 </div>
-                <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
-                  {formatTokensShort(totalThisMonth)}
+                <div className="font-mono font-bold" style={{ color: '#d9622a' }}>
+                  {formatTokensShort(filteredData.find((d) => d.date === today)?.tokens ?? 0)}
                 </div>
               </div>
               <Separator orientation="vertical" className="h-auto bg-[#ecdccc]" />
               <div className="text-right">
-                <div className="font-semibold" style={{ color: "#9a7060" }}>
+                <div className="font-semibold" style={{ color: '#9a7060' }}>
                   최근 7일
                 </div>
-                <div className="font-mono font-bold" style={{ color: "#d9622a" }}>
+                <div className="font-mono font-bold" style={{ color: '#d9622a' }}>
                   {formatTokensShort(thisWeekTokens)}
+                </div>
+              </div>
+              <Separator orientation="vertical" className="h-auto bg-[#ecdccc]" />
+              <div className="relative group text-right cursor-default">
+                <div className="font-semibold" style={{ color: '#9a7060' }}>
+                  전주 대비
+                </div>
+                <div
+                  className="font-mono font-bold"
+                  style={{
+                    color:
+                      weekGrowth === null ? '#9a7060' : weekGrowth >= 0 ? '#2f8f57' : '#c53030',
+                  }}
+                >
+                  {weekGrowth === null
+                    ? '-'
+                    : `${weekGrowth >= 0 ? '▲' : '▼'} ${Math.abs(weekGrowth)}%`}
+                </div>
+                <div
+                  className="absolute top-full right-0 mt-1.5 hidden group-hover:block z-10
+                                rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-md"
+                  style={{ backgroundColor: '#3a2010', color: '#fde8d5' }}
+                >
+                  {lastWeekLabel}
                 </div>
               </div>
             </CardContent>
@@ -184,11 +227,11 @@ export default function App(): React.JSX.Element {
           <div
             className="rounded-3xl p-12 flex flex-col items-center justify-center gap-2"
             style={{
-              backgroundColor: "#fffcf8",
-              border: "1px solid #ecdccc",
+              backgroundColor: '#fffcf8',
+              border: '1px solid #ecdccc',
             }}
           >
-            <p className="text-sm font-semibold" style={{ color: "#c05040" }}>
+            <p className="text-sm font-semibold" style={{ color: '#c05040' }}>
               {error}
             </p>
           </div>
@@ -196,15 +239,15 @@ export default function App(): React.JSX.Element {
           <div
             className="rounded-3xl p-12 flex flex-col items-center justify-center gap-3"
             style={{
-              backgroundColor: "#fffcf8",
-              border: "1px solid #ecdccc",
+              backgroundColor: '#fffcf8',
+              border: '1px solid #ecdccc',
             }}
           >
             <div
               className="w-6 h-6 rounded-full border-2 animate-spin"
-              style={{ borderColor: "#ecdccc", borderTopColor: "#d9622a" }}
+              style={{ borderColor: '#ecdccc', borderTopColor: '#d9622a' }}
             />
-            <p className="text-sm font-semibold" style={{ color: "#c0a090" }}>
+            <p className="text-sm font-semibold" style={{ color: '#c0a090' }}>
               JSONL 파일 파싱 중…
             </p>
           </div>
@@ -218,15 +261,23 @@ export default function App(): React.JSX.Element {
               onRefreshUsage={fetchOAuthUsage}
             />
 
+            {/* Stats */}
+            <div>
+              <h2 className="font-extrabold text-sm mb-2" style={{ color: '#3a2010' }}>
+                📊 요약 통계
+              </h2>
+              <StatsPanel data={filteredData} today={today} />
+            </div>
+
             {/* Heatmap Card */}
             <Card>
               <CardContent>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="font-extrabold text-sm" style={{ color: "#3a2010" }}>
+                    <h2 className="font-extrabold text-sm" style={{ color: '#3a2010' }}>
                       🗓 활동 히트맵
                     </h2>
-                    <p className="text-xs font-medium mt-0.5" style={{ color: "#9a7060" }}>
+                    <p className="text-xs font-medium mt-0.5" style={{ color: '#9a7060' }}>
                       {(() => {
                         const { start, end } = getHeatmapRange();
                         return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ~ ${end.getMonth() + 1}월 토큰 사용 기록`;
@@ -235,23 +286,15 @@ export default function App(): React.JSX.Element {
                   </div>
                   <Badge variant="warm" className="gap-1.5 px-3 py-1.5 text-xs font-semibold">
                     <span className="text-sm">🔥</span>
-                    <span className="font-bold text-sm" style={{ color: "#d9622a" }}>
+                    <span className="font-bold text-sm" style={{ color: '#d9622a' }}>
                       {filteredData.filter((d) => d.tokens > 0).length}
                     </span>
-                    <span style={{ color: "#c07050" }}>일 활성</span>
+                    <span style={{ color: '#c07050' }}>일 활성</span>
                   </Badge>
                 </div>
                 <TokenHeatmap data={heatmapData} today={today} />
               </CardContent>
             </Card>
-
-            {/* Stats */}
-            <div>
-              <h2 className="font-extrabold text-sm mb-2" style={{ color: "#3a2010" }}>
-                📊 요약 통계
-              </h2>
-              <StatsPanel data={filteredData} allDays={allDays} today={today} />
-            </div>
 
             {/* Recent activity */}
             <RecentActivity days={last7Days} today={today} maxTokens={maxLast7} />
