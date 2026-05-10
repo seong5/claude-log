@@ -27,7 +27,8 @@ function getModelFamily(model: string): string | null {
 function shortModelName(model: string): string {
   const family = getModelFamily(model);
   if (!family) return model;
-  return `${family[0].toUpperCase()}${family.slice(1)} ${extractVersion(model)}`;
+  const version = extractVersion(model);
+  return version ? `${family[0].toUpperCase()}${family.slice(1)} ${version}` : `${family[0].toUpperCase()}${family.slice(1)}`;
 }
 
 function modelColor(model: string): string {
@@ -171,10 +172,11 @@ export default function StatsPanel({ data, today }: Props) {
 
   // 모델별 합산
   const modelTotals = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, number>([['sonnet', 0], ['opus', 0], ['haiku', 0]]);
     for (const day of data) {
       for (const [model, tokens] of Object.entries(day.modelBreakdown)) {
-        map.set(model, (map.get(model) ?? 0) + tokens);
+        const key = getModelFamily(model) ?? model;
+        map.set(key, (map.get(key) ?? 0) + tokens);
       }
     }
     return Array.from(map.entries())
