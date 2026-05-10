@@ -21,6 +21,13 @@ export interface DayData {
   modelBreakdown: Record<string, number>
 }
 
+export interface UpdatePayload {
+  days: DayData[]
+  currentSession: SessionData | null
+  recentFiveHourTokens: number
+  oldestRecentEntryTime: number | null
+}
+
 export interface ClaudeLogAPI {
   getDays: () => Promise<DayData[]>
   getCurrentSession: () => Promise<SessionData | null>
@@ -28,7 +35,7 @@ export interface ClaudeLogAPI {
   getOldestRecentEntryTime: () => Promise<number | null>
   getAdminWeekUsage: () => Promise<AdminWeekUsageData>
   getOAuthUsage: () => Promise<OAuthUsageData>
-  onUpdate: (callback: (days: DayData[]) => void) => () => void
+  onUpdate: (callback: (payload: UpdatePayload) => void) => () => void
 }
 
 export interface AdminWeekUsageData {
